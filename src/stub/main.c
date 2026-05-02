@@ -1,3 +1,10 @@
+#ifndef UNICODE
+#define UNICODE
+#endif
+#ifndef _UNICODE
+#define _UNICODE
+#endif
+
 #include <windows.h>
 #include <tchar.h>
 #include <time.h>
@@ -364,6 +371,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	
 	if ((g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE) || (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES)){
 		InitSessionDropPath();
+		if (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES) InitResPath();
 	}
 	
 	StubProcess();

@@ -19,7 +19,7 @@
 
 // Res
 #define IDR_XBAT_KEY 998
-#define IDR_XBAT_BAT 501
+#define IDR_XBAT_BAT 500
 #define IDR_XBAT_CONFIG 999
 
 
