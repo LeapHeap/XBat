@@ -10,6 +10,7 @@ BYTE FinalKey[XBAT_FINAL_KEY_LENGTH];
 BYTE XBatMagic[] = XBAT_MAGIC_DATA;
 XBAT_CONFIG g_Config;
 TCHAR g_szSessionDropPath[MAX_PATH];
+TCHAR g_szSessionResPath[MAX_PATH];
 TCHAR g_szBatWorkDir[MAX_PATH];
 
 void XBat_GenerateRandomString(TCHAR *pszBuffer, DWORD dwSize);
@@ -42,30 +43,47 @@ void InitGlobalConfig(HMODULE hMod){
 
 
 // Free pContent manually is required if succeed
-BYTE* XBat_ExtractResource(const LPVOID pData, DWORD dwSize, const BYTE* pKey, int keyLength, DWORD* pOutLen){
+BYTE* XBat_ExtractResource(const LPVOID pData, DWORD dwSize, const BYTE* pKey, int keyLength, DWORD* pOutLen, TCHAR* pszOutFileName, DWORD* pdwOutAttrib){
 	if (!pData || !pKey) return NULL;
 	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)pData;
 	UINT Magic = pHeader->Magic;
-	UINT SavedCrc = pHeader->SavedCrc;
-	size_t RawSize = pHeader->OriginalSize;
 	if (Magic != *(UINT*)XBatMagic) return NULL;
 	
-	BYTE* pContent = (BYTE*)malloc(RawSize);
+	if (pszOutFileName){
+		_tcscpy_s(pszOutFileName, MAX_PATH, pHeader->szFileName);
+	}
+	
+	if (pdwOutAttrib) {
+		*pdwOutAttrib = pHeader->dwAttributes;
+	}
+	
+	
+	UINT SavedCrc = pHeader->SavedCrc;
+	DWORD dwRawSize = pHeader->dwOriginalSize;
+	
+	
+	BYTE* pContent = (BYTE*)malloc(dwRawSize);
 	if (!pContent) return NULL;
 	
-	memcpy(pContent,pHeader->Data,RawSize);
+	memcpy(pContent,pHeader->Data,dwRawSize);
 	RC4_CTX ctx;
 	RC4_Init(&ctx,pKey,keyLength);
-	RC4_Process(&ctx,pContent,RawSize);
+	RC4_Process(&ctx,pContent,dwRawSize);
 	
-	if (CalculateCRC32(pContent,RawSize) != SavedCrc){
+	if (CalculateCRC32(pContent,dwRawSize) != SavedCrc){
 		free(pContent);
 		return NULL;
 		
 	}
 	
-	if (pOutLen) *pOutLen = RawSize;
+	if (pOutLen) *pOutLen = dwRawSize;
 	return pContent;
+	
+}
+
+void InitResPath(){
+	_stprintf_s(g_szSessionResPath, MAX_PATH, _T("%s\\Res"),g_szSessionDropPath);
+	CreateDirectory(g_szSessionResPath, NULL);
 	
 }
 
@@ -77,9 +95,27 @@ BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG
 		HGLOBAL hData = LoadResource(hMod,hRes);
 		void* pData = LockResource(hData);
 		DWORD dwContentOutLen = 0;
-		BYTE* pContent = XBat_ExtractResource(pData,dwSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwContentOutLen);
+		TCHAR szFileName[MAX_PATH];
+		DWORD dwFileAttrib = 0;
+		BYTE* pContent = XBat_ExtractResource(pData,dwSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwContentOutLen,szFileName,&dwFileAttrib);
 		if (pContent){
-			// TODO: Add lzma decode logic
+			if (g_Config.GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED){
+				// TODO: Add lzma decode logic
+			}
+			
+			TCHAR szFullPath[MAX_PATH];
+			_stprintf_s(szFullPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, szFileName);
+			
+			// Write file
+			HANDLE hFile = CreateFile(szFullPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hFile != INVALID_HANDLE_VALUE) {
+				DWORD dwWritten;
+				WriteFile(hFile, pContent, dwContentOutLen, &dwWritten, NULL);
+				CloseHandle(hFile);
+				
+				// Recover file attribute
+				SetFileAttributes(szFullPath, dwFileAttrib);
+			}
 			
 			
 			free(pContent);
@@ -156,8 +192,8 @@ void RunBatAsFile(BYTE* pBatContent, DWORD dwContentLen)
 		WaitForSingleObject(sei.hProcess, INFINITE);
 		
 		// Optional: Get exit code
-		DWORD dwExitCode = 0;
-		GetExitCodeProcess(sei.hProcess, &dwExitCode);
+//		DWORD dwExitCode = 0;
+//		GetExitCodeProcess(sei.hProcess, &dwExitCode);
 		
 		CloseHandle(sei.hProcess);
 	}
@@ -167,6 +203,16 @@ void RunBatAsFile(BYTE* pBatContent, DWORD dwContentLen)
 void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
 	if (g_Config.GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED){
 		// LZMA decode logic
+	}
+	
+	if (g_Config.GlobalFlags & XBAT_FLAG_USE_PIPE) {
+		if (g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE){
+			// TODO: Fatih-like mode
+			
+		} else {
+			// TODO: Full pipe mode
+		}
+		
 	}
 	
 	if (g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE) {
@@ -191,16 +237,58 @@ void StubProcess(){
 	HGLOBAL hBatData = LoadResource(hMod,hBatRes);
 	void* pBatData = LockResource((hBatData));
 	DWORD dwBatContentOutLen = 0;
-	BYTE* pBatContent = XBat_ExtractResource(pBatData,dwBatResSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwBatContentOutLen);
+	BYTE* pBatContent = XBat_ExtractResource(pBatData,dwBatResSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwBatContentOutLen,NULL,NULL);
 	
 	if (pBatContent){
 		//TODO: run bat in modes
-		ExecBat(pBatContent, dwBatContentOutLen);
 		
-		free(pBatContent);
+		BYTE* pFinalContent = pBatContent;
+		DWORD dwFinalLen =dwBatContentOutLen;
+		
+		// If has user resources
+		if (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES){
+			TCHAR szExePath[MAX_PATH];
+			GetModuleFileName(NULL, szExePath, MAX_PATH);
+			// Get the directory part
+			TCHAR* pLastSlash = _tcsrchr(szExePath, _T('\\'));
+			if (pLastSlash) *pLastSlash = _T('\0');
+			// Build inject text
+			TCHAR szInjectHeader[MAX_PATH * 3];
+			_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@set RESDIR=%s\r\n@set EXEPATH=%s\r\n"), g_szSessionResPath, szExePath);
+			
+#ifdef UNICODE
+			// Convert wide header in UNICODE to ANSI for script
+			int nHeaderLen = WideCharToMultiByte(CP_UTF8, 0, szInjectHeader, -1, NULL, 0, NULL, NULL) - 1;
+			char* pHeaderA = (char*)malloc(nHeaderLen + 1);
+			WideCharToMultiByte(CP_UTF8, 0, szInjectHeader, -1, pHeaderA, nHeaderLen + 1, NULL, NULL);
+#else
+			int nHeaderLen = _tcslen(szInjectHeader);
+			char* pHeaderA = szInjectHeader; // Point to ANSI header directly
+#endif
+			
+			// Merge content
+			dwFinalLen = nHeaderLen + dwBatContentOutLen;
+			pFinalContent = (BYTE*)malloc(dwFinalLen);
+			memcpy(pFinalContent, pHeaderA, nHeaderLen);
+			memcpy(pFinalContent + nHeaderLen, pBatContent, dwBatContentOutLen);
+			
+#ifdef UNICODE
+			free(pHeaderA); // Free the heap memory allocated due to W2MB conversion
+#endif
+			free(pBatContent); // Free the og bat content memory
+			
+			EnumResourceTypes(hMod,EnumResTypesFunc,0); // Parse user-added resources
+		} 
+		
+		ExecBat(pFinalContent, dwFinalLen);
+		
+		if (pFinalContent) free(pFinalContent);
+		
+	} else {
+		MessageBox(NULL,_T("Failed to load script"),_T("Error"),MB_ICONERROR);
 	}
 	
-	EnumResourceTypes(hMod,EnumResTypesFunc,0); // For user-added resources
+	
 }
 
 
@@ -241,15 +329,24 @@ void XBat_GenerateRandomString(TCHAR *pszBuffer, DWORD dwSize)
 }
 
 void InitSessionDropPath(){
-	if (!(g_Config.GlobalFlags & XBAT_FLAG_USE_TEMP_DROP_PATH)){
-		return;
-	}
 	
 	TCHAR szTempPath[MAX_PATH];
-	if (GetTempPath(MAX_PATH, szTempPath) == 0){
-		// Use current dir if failed
+	
+	switch (g_Config.DropDirType) {
+	case XBAT_DROP_DIR_TEMP:
+		if (GetTempPath(MAX_PATH, szTempPath) == 0){
+			// Use current dir if failed
+			GetCurrentDirectory(MAX_PATH, szTempPath);
+		}
+		break;
+	case XBAT_DROP_DIR_CURR:
 		GetCurrentDirectory(MAX_PATH, szTempPath);
+		break;
+	default:
+		GetCurrentDirectory(MAX_PATH, szTempPath);
+		break;
 	}
+	
 	
 	TCHAR szRandom[5] = {0};
 	XBat_GenerateRandomString(szRandom, 5);

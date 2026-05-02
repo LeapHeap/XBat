@@ -10,7 +10,10 @@
 #define XBAT_FLAG_RUN_BAT_AS_FILE       (1 << 1)
 #define XBAT_FLAG_LZMA_COMPRESSED		(1 << 2)
 #define XBAT_FLAG_HAS_USER_RESOURCES	(1 << 3)
-#define XBAT_FLAG_USE_TEMP_DROP_PATH	(1 << 4)
+#define XBAT_FLAG_USE_PIPE				(1 << 4)
+
+#define XBAT_DROP_DIR_TEMP		0
+#define XBAT_DROP_DIR_CURR		1
 
 #define XBAT_FINAL_KEY_LENGTH 16
 
@@ -26,7 +29,9 @@
 typedef struct {
 	UINT Magic;   // unsigned int as 4 bytes
 	UINT SavedCrc;
-	DWORD OriginalSize;
+	DWORD dwOriginalSize;
+	DWORD dwAttributes;
+	TCHAR szFileName[MAX_PATH];
 	BYTE Data[1];
 } XBAT_RES_HEADER;
 #pragma pack(pop)
@@ -35,7 +40,7 @@ typedef struct {
 typedef struct {
 	UINT Magic;
 	UINT GlobalFlags;
-	
+	UINT DropDirType;
 } XBAT_CONFIG;
 #pragma pack(pop)
 

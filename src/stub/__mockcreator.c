@@ -16,7 +16,9 @@
 void CreateTestStub(LPCTSTR szStubPath, LPCTSTR szOutputPath) {
 	XBAT_CONFIG cfg = {0};
 	cfg.Magic = XBAT_MAGIC_INT;
-	cfg.GlobalFlags = XBAT_FLAG_RUN_BAT_AS_FILE | XBAT_FLAG_SHOW_CONSOLE | XBAT_FLAG_USE_TEMP_DROP_PATH;
+	cfg.GlobalFlags = XBAT_FLAG_RUN_BAT_AS_FILE | XBAT_FLAG_SHOW_CONSOLE;
+	cfg.DropDirType = XBAT_DROP_DIR_TEMP;
+	
 	
 	const char* rawKeyString = "TEST_KEY_123456"; 
 	BYTE rawKey[16] = {0}; 
@@ -35,7 +37,7 @@ void CreateTestStub(LPCTSTR szStubPath, LPCTSTR szOutputPath) {
 	
 	pHeader->Magic = XBAT_MAGIC_INT;
 	pHeader->SavedCrc = CalculateCRC32((BYTE*)szScript, dwLen);
-	pHeader->OriginalSize = dwLen;
+	pHeader->dwOriginalSize = dwLen;
 	memcpy(pHeader->Data, szScript, dwLen);
 	
 	RC4_CTX ctx;
