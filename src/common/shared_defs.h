@@ -1,0 +1,43 @@
+#ifndef SHARED_DEFS_H
+#define SHARED_DEFS_H
+
+#include <windows.h>
+
+#define XBAT_MAGIC_DATA {0x58,0x42,0x41,0x54} // "XBAT"
+#define XBAT_MAGIC_INT 0x54414258
+
+#define XBAT_FLAG_SHOW_CONSOLE          (1 << 0)
+#define XBAT_FLAG_RUN_BAT_AS_FILE       (1 << 1)
+#define XBAT_FLAG_LZMA_COMPRESSED		(1 << 2)
+#define XBAT_FLAG_HAS_USER_RESOURCES	(1 << 3)
+#define XBAT_FLAG_USE_TEMP_DROP_PATH	(1 << 4)
+
+#define XBAT_FINAL_KEY_LENGTH 16
+
+// Res
+#define IDR_XBAT_KEY 998
+#define IDR_XBAT_BAT 501
+#define IDR_XBAT_CONFIG 999
+
+
+#define XBAT_KEY_OBFUSCATOR 0xA5
+
+#pragma pack(push, 1)
+typedef struct {
+	UINT Magic;   // unsigned int as 4 bytes
+	UINT SavedCrc;
+	DWORD OriginalSize;
+	BYTE Data[1];
+} XBAT_RES_HEADER;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct {
+	UINT Magic;
+	UINT GlobalFlags;
+	
+} XBAT_CONFIG;
+#pragma pack(pop)
+
+
+#endif
