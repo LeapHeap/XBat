@@ -8,9 +8,12 @@
 #include <windows.h>
 #include <tchar.h>
 #include <time.h>
-#include "stub_full/stub_full.h"
 #include "../common/crypto.h"
 #include "../common/shared_defs.h"
+
+#ifdef MODE_FULL
+#include "stub_full/stub_full.h"
+#endif
 
 HMODULE g_hStub;
 BYTE FinalKey[XBAT_FINAL_KEY_LENGTH];
@@ -18,7 +21,7 @@ BYTE XBatMagic[] = XBAT_MAGIC_DATA;
 XBAT_CONFIG g_Config;
 TCHAR g_szSessionDropPath[MAX_PATH];
 TCHAR g_szSessionResPath[MAX_PATH];
-TCHAR g_szBatWorkDir[MAX_PATH];
+//TCHAR g_szBatWorkDir[MAX_PATH];
 
 void XBat_GenerateRandomString(TCHAR *pszBuffer, DWORD dwSize);
 
@@ -88,6 +91,43 @@ BYTE* XBat_ExtractResource(const LPVOID pData, DWORD dwSize, const BYTE* pKey, i
 	
 }
 
+#ifdef MODE_FULL
+BYTE* XBat_ExtractResourceEx(const LPVOID pData, DWORD dwSize, const BYTE* pKey, int keyLength, DWORD* pOutLen, TCHAR* pszOutFileName, DWORD* pdwOutAttrib) {
+	if (!pData || !pKey) return NULL;
+	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)pData;
+	if (pHeader->Magic != *(UINT*)XBatMagic) return NULL;
+	
+	if (pszOutFileName) _tcscpy_s(pszOutFileName, MAX_PATH, pHeader->szFileName);
+	if (pdwOutAttrib) *pdwOutAttrib = pHeader->dwAttributes;
+	
+	UINT SavedCrc = pHeader->SavedCrc;
+	DWORD dwFinalSize = pHeader->dwOriginalSize;
+	DWORD dwCompressedSize = dwSize - (sizeof(XBAT_RES_HEADER) - 1); 
+	
+	BYTE* pCompressed = (BYTE*)malloc(dwCompressedSize);
+	if (!pCompressed) return NULL;
+	
+	memcpy(pCompressed, pHeader->Data, dwCompressedSize);
+	RC4_CTX ctx;
+	RC4_Init(&ctx, pKey, keyLength);
+	RC4_Process(&ctx, pCompressed, dwCompressedSize);
+	
+	if (CalculateCRC32(pCompressed, dwCompressedSize) != SavedCrc) {
+		free(pCompressed);
+		return NULL;
+	}
+	
+	BYTE* pFinal = XBat_DecompressBuffer(pCompressed, dwCompressedSize, dwFinalSize);
+	
+	free(pCompressed);
+	
+	if (pFinal && pOutLen) *pOutLen = dwFinalSize;
+	return pFinal;
+}
+#endif
+
+
+
 void InitResPath(){
 	_stprintf_s(g_szSessionResPath, MAX_PATH, _T("%s\\Res"),g_szSessionDropPath);
 	CreateDirectory(g_szSessionResPath, NULL);
@@ -104,11 +144,20 @@ BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG
 		DWORD dwContentOutLen = 0;
 		TCHAR szFileName[MAX_PATH];
 		DWORD dwFileAttrib = 0;
-		BYTE* pContent = XBat_ExtractResource(pData,dwSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwContentOutLen,szFileName,&dwFileAttrib);
+		BYTE* pContent = NULL;
+		
+#ifdef MODE_FULL
+		if (g_Config.GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED){
+			pContent = XBat_ExtractResourceEx(pData,dwSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwContentOutLen,szFileName,&dwFileAttrib);
+		} else {
+			pContent = XBat_ExtractResource(pData,dwSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwContentOutLen,szFileName,&dwFileAttrib);
+		}
+#else
+		pContent = XBat_ExtractResource(pData,dwSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwContentOutLen,szFileName,&dwFileAttrib);
+#endif
+		
 		if (pContent){
-			if (g_Config.GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED){
-				// TODO: Add lzma decode logic
-			}
+			
 			
 			TCHAR szFullPath[MAX_PATH];
 			_stprintf_s(szFullPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, szFileName);
@@ -208,10 +257,7 @@ void RunBatAsFile(BYTE* pBatContent, DWORD dwContentLen)
 }
 
 void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
-	if (g_Config.GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED){
-		// LZMA decode logic
-	}
-	
+
 	if (g_Config.GlobalFlags & XBAT_FLAG_USE_PIPE) {
 		if (g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE){
 			// TODO: Fatih-like mode
@@ -244,7 +290,19 @@ void StubProcess(){
 	HGLOBAL hBatData = LoadResource(hMod,hBatRes);
 	void* pBatData = LockResource((hBatData));
 	DWORD dwBatContentOutLen = 0;
-	BYTE* pBatContent = XBat_ExtractResource(pBatData,dwBatResSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwBatContentOutLen,NULL,NULL);
+	BYTE* pBatContent = NULL;
+	
+
+#ifdef MODE_FULL
+	if (g_Config.GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED){
+		pBatContent = XBat_ExtractResourceEx(pBatData,dwBatResSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwBatContentOutLen,NULL,NULL);
+	} else {
+		pBatContent = XBat_ExtractResource(pBatData,dwBatResSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwBatContentOutLen,NULL,NULL);
+	}
+#else
+	pBatContent = XBat_ExtractResource(pBatData,dwBatResSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwBatContentOutLen,NULL,NULL);
+#endif
+	
 	
 	if (pBatContent){
 		//TODO: run bat in modes
@@ -261,7 +319,7 @@ void StubProcess(){
 			if (pLastSlash) *pLastSlash = _T('\0');
 			// Build inject text
 			TCHAR szInjectHeader[MAX_PATH * 3];
-			_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@set RESDIR=%s\r\n@set EXEPATH=%s\r\n"), g_szSessionResPath, szExePath);
+			_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@chcp 65001 >nul\r\n@set RESDIR=%s\r\n@set EXEPATH=%s\r\n"), g_szSessionResPath, szExePath);
 			
 #ifdef UNICODE
 			// Convert wide header in UNICODE to ANSI for script

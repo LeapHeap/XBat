@@ -4,8 +4,7 @@
 #include <windows.h>
 
 #ifdef MODE_FULL
-	
-
+BYTE* XBat_DecompressBuffer(const BYTE* pCompressedData, DWORD dwCompressedSize, DWORD dwExpectedSize);
 
 #endif
 

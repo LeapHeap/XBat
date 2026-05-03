@@ -10,4 +10,5 @@
 *_private.*
 makefile.win
 _script*
+test*.*
 Release/
