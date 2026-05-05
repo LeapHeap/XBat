@@ -5,7 +5,8 @@
 
 #ifdef MODE_FULL
 BYTE* XBat_DecompressBuffer(const BYTE* pCompressedData, DWORD dwCompressedSize, DWORD dwExpectedSize);
-
+BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBatPath);
+void SetupConsole(LPCSTR lpszConsoleTitle);
 #endif
 
 

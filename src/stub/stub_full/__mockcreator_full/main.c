@@ -5,6 +5,11 @@
 #define _UNICODE
 #endif
 
+#define ENABLE_LZMA
+#define ENABLE_PIPE
+//#define RUN_AS_FILE
+#define SHOW_CONSOLE
+
 #include <stdio.h>
 #include <windows.h>
 #include <tchar.h>
@@ -89,14 +94,14 @@ BOOL PackAndInjectResourceEx(
 	DWORD dwFinalDataLen = dwDataLen;
 	BYTE* pCompressedBuffer = NULL;
 	
-#ifdef MODE_FULL
+
 	if (bCompress) {
 		pCompressedBuffer = CompressDataLZMA(pRawData, dwDataLen, &dwFinalDataLen);
 		if (pCompressedBuffer) {
 			pFinalDataToEncrypt = pCompressedBuffer;
 		}
 	}
-#endif
+
 	
 	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)malloc(sizeof(XBAT_RES_HEADER) + dwFinalDataLen);
 	if (!pHeader) {
@@ -131,15 +136,27 @@ BOOL PackAndInjectResourceEx(
 void CreateTestStub(LPCTSTR szStubPath, LPCTSTR szOutputPath) {
 	XBAT_CONFIG cfg = {0};
 	cfg.Magic = XBAT_MAGIC_INT;
-	cfg.GlobalFlags = XBAT_FLAG_RUN_BAT_AS_FILE | XBAT_FLAG_SHOW_CONSOLE | XBAT_FLAG_HAS_USER_RESOURCES;
+	cfg.GlobalFlags = XBAT_FLAG_HAS_USER_RESOURCES;
 	cfg.DropDirType = XBAT_DROP_DIR_TEMP;
-	
+	strcpy(cfg.szConsoleTitle, "Test Stub");
 
-#ifdef MODE_FULL
-	cfg.GlobalFlags |= XBAT_FLAG_LZMA_COMPRESSED;
-	BOOL bEnableLzma = TRUE;
-#else
 	BOOL bEnableLzma = FALSE;
+	
+#ifdef ENABLE_LZMA
+	cfg.GlobalFlags |= XBAT_FLAG_LZMA_COMPRESSED;
+	bEnableLzma = TRUE;
+#endif
+	
+#ifdef ENABLE_PIPE
+	cfg.GlobalFlags |= XBAT_FLAG_USE_PIPE;
+#endif
+	
+#ifdef SHOW_CONSOLE
+	cfg.GlobalFlags |= XBAT_FLAG_SHOW_CONSOLE;
+#endif
+	
+#ifdef RUN_AS_FILE
+	cfg.GlobalFlags |= XBAT_FLAG_RUN_BAT_AS_FILE;
 #endif
 
 	const char* rawKeyString = "TEST_KEY_123456";

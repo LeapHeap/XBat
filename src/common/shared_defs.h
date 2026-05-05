@@ -16,6 +16,7 @@
 #define XBAT_DROP_DIR_CURR		1
 
 #define XBAT_FINAL_KEY_LENGTH 16
+#define XBAT_CONSOLE_TITLE_LENGTH 64
 
 // Res
 #define IDR_XBAT_KEY 998
@@ -41,6 +42,7 @@ typedef struct {
 	UINT Magic;
 	UINT GlobalFlags;
 	UINT DropDirType;
+	CHAR szConsoleTitle[XBAT_CONSOLE_TITLE_LENGTH]; // ANSI for console
 } XBAT_CONFIG;
 #pragma pack(pop)
 

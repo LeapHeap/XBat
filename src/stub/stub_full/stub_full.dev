@@ -12,7 +12,7 @@ MakeIncludes =
 PrivateResource = 
 Compiler = -DMODE_FULL -DUNICODE -D_UNICODE
 CppCompiler = 
-Linker = F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/lzmadec/LzmaDec.o
+Linker =  F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/lzmadec/LzmaDec.o
 ResourceCommand = 
 IsCpp = 0
 Icon = 
@@ -112,7 +112,7 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = UTF-8
+RealEncoding = ASCII
 
 
 [Unit5]
@@ -138,7 +138,7 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = ASCII
+RealEncoding = UTF-8
 
 
 [Unit7]

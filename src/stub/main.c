@@ -23,6 +23,39 @@ TCHAR g_szSessionDropPath[MAX_PATH];
 TCHAR g_szSessionResPath[MAX_PATH];
 //TCHAR g_szBatWorkDir[MAX_PATH];
 
+char* WCharToUtf8(const WCHAR* wideStr) {
+	if (wideStr == NULL) return NULL;
+	int needSize = WideCharToMultiByte(CP_UTF8, 0, wideStr, -1, NULL, 0, NULL, NULL);
+	if (needSize <= 0) return NULL;
+	
+	char* multiStr = (char*)malloc(needSize);
+	if (multiStr == NULL) return NULL;
+	
+	WideCharToMultiByte(CP_UTF8, 0, wideStr, -1, multiStr, needSize, NULL, NULL);
+	return multiStr;
+}
+
+// WARNING: Manual free is required after use
+char* WCharToAnsi(const WCHAR* wideStr) {
+	if (wideStr == NULL) return NULL;
+	
+	int needSize = WideCharToMultiByte(CP_ACP, 0, wideStr, -1,
+									   NULL, 0, NULL, NULL);
+	if (needSize <= 0) return NULL;
+	
+	char* multiStr = (char*)malloc(needSize);
+	if (multiStr == NULL) return NULL;
+	
+	int result = WideCharToMultiByte(CP_ACP, 0, wideStr, -1,
+									 multiStr, needSize, NULL, NULL);
+	if (result == 0) {
+		free(multiStr);
+		return NULL;
+	}
+	
+	return multiStr;
+}
+
 void XBat_GenerateRandomString(TCHAR *pszBuffer, DWORD dwSize);
 
 BOOL DirectoryExists(LPCTSTR szPath)
@@ -35,6 +68,8 @@ BOOL DirectoryExists(LPCTSTR szPath)
 void SetDefaultConfig(XBAT_CONFIG* Cfg){
 	Cfg->Magic = *(UINT*)XBatMagic;
 	Cfg->GlobalFlags = 0;
+	Cfg->DropDirType = XBAT_DROP_DIR_TEMP;
+	strcpy(Cfg->szConsoleTitle, "XBat Executor Console");
 }
 
 void InitGlobalConfig(HMODULE hMod){
@@ -191,86 +226,86 @@ BOOL CALLBACK EnumResTypesFunc(HMODULE hMod, LPTSTR lpType, LONG_PTR lParam){
 	return TRUE;
 }
 
-void RunBatAsFile(BYTE* pBatContent, DWORD dwContentLen)
-{
-	if (pBatContent == NULL || dwContentLen == 0) return;
+
+BOOL DropScriptToTemp(BYTE* pBatContent, DWORD dwContentLen, TCHAR* szOutPath) {
+	if (pBatContent == NULL || dwContentLen == 0 || szOutPath == NULL) return FALSE;
 	
-	// Ensure directory exists
-	if (!CreateDirectory(g_szSessionDropPath, NULL)){
-		DWORD dwErr = GetLastError();
-		if (dwErr != ERROR_ALREADY_EXISTS){
-			return;  // Failed
-		}
+	if (!CreateDirectory(g_szSessionDropPath, NULL)) {
+		if (GetLastError() != ERROR_ALREADY_EXISTS) return FALSE;
 	}
 	
-	TCHAR szRandom[5] = {0};
+	TCHAR szRandom[5] = { 0 };
 	XBat_GenerateRandomString(szRandom, 5);
+	_stprintf_s(szOutPath, MAX_PATH, _T("%s\\%s.bat"), g_szSessionDropPath, szRandom);
 	
-	TCHAR szBatFullPath[MAX_PATH];
-	_stprintf_s(szBatFullPath, MAX_PATH, _T("%s\\%s.bat"), g_szSessionDropPath, szRandom);
-
-	// Write file (UTF-8 BOM)
-	HANDLE hFile = CreateFile(
-							  szBatFullPath,
-							  GENERIC_WRITE,
-							  0,
-							  NULL,
-							  CREATE_ALWAYS,
-							  FILE_ATTRIBUTE_NORMAL,
-							  NULL
-							  );
-	
-	if (hFile == INVALID_HANDLE_VALUE) return;
+	HANDLE hFile = CreateFile(szOutPath, GENERIC_WRITE, 0, NULL, 
+							  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hFile == INVALID_HANDLE_VALUE) return FALSE;
 	
 	DWORD dwWritten = 0;
-	
-//	BYTE bBOM[] = { 0xEF, 0xBB, 0xBF };
-//	WriteFile(hFile, bBOM, sizeof(bBOM), &dwWritten, NULL);
-	
-	WriteFile(hFile, pBatContent, dwContentLen, &dwWritten, NULL);
-	
+	BOOL bRet = WriteFile(hFile, pBatContent, dwContentLen, &dwWritten, NULL);
 	CloseHandle(hFile);
 	
-	int sw;
-	if (g_Config.GlobalFlags & XBAT_FLAG_SHOW_CONSOLE) sw = SW_SHOW;
-	else sw = SW_HIDE;
+	return bRet && (dwWritten == dwContentLen);
+}
+
+void RunBatAsFile_Legacy_Internal(TCHAR* lpszFilePath, BOOL bShow) {
+	STARTUPINFO si = { sizeof(si) };
+	PROCESS_INFORMATION pi = { 0 };
 	
+	si.dwFlags = STARTF_USESHOWWINDOW;
+	si.wShowWindow = bShow ? SW_SHOW : SW_HIDE;
 	
-	SHELLEXECUTEINFO sei = {0};
-	sei.cbSize = sizeof(sei);
-	sei.fMask = SEE_MASK_NOCLOSEPROCESS;
-	sei.lpVerb = _T("open");
-	sei.lpFile = szBatFullPath;
-	sei.nShow = sw;
+	TCHAR szCmdLine[MAX_PATH + 32];
+	_stprintf_s(szCmdLine, _countof(szCmdLine), _T("cmd.exe /c \"%s\""), lpszFilePath);
 	
-	if (ShellExecuteEx(&sei)) {
-		// Wait for process
-		WaitForSingleObject(sei.hProcess, INFINITE);
-		
-		// Optional: Get exit code
-//		DWORD dwExitCode = 0;
-//		GetExitCodeProcess(sei.hProcess, &dwExitCode);
-		
-		CloseHandle(sei.hProcess);
+	DWORD dwFlags = bShow ? 0 : CREATE_NO_WINDOW;
+	if (CreateProcess(NULL, szCmdLine, NULL, NULL, FALSE, dwFlags, NULL, NULL, &si, &pi)) {
+		// Wait for script to terminate
+		WaitForSingleObject(pi.hProcess, INFINITE);
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
 	}
-	
 }
 
 void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
-
+	BOOL bShowConsole = (g_Config.GlobalFlags & XBAT_FLAG_SHOW_CONSOLE);
+	
+	TCHAR szFilePath[MAX_PATH];
+	CHAR* pszFilePathA = NULL;
+#ifdef MODE_FULL
+	if (bShowConsole) {
+		if (g_Config.GlobalFlags & XBAT_FLAG_USE_PIPE) SetupConsole(g_Config.szConsoleTitle);
+	}
+#endif
+	
+#ifdef MODE_FULL
 	if (g_Config.GlobalFlags & XBAT_FLAG_USE_PIPE) {
 		if (g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE){
-			// TODO: Fatih-like mode
-			
+			// Note: Fatih-like mode
+
+			DropScriptToTemp(pBatContent, dwContentLen, szFilePath);
+#ifdef UNICODE
+			pszFilePathA = WCharToUtf8(szFilePath);
+			RunBatPipe(NULL, 0, bShowConsole, pszFilePathA);
+			free(pszFilePathA);
+#else
+			RunBatPipe(NULL, 0, bShowConsole, szFilePath);
+#endif
 		} else {
 			// TODO: Full pipe mode
+			RunBatPipe((LPCSTR)pBatContent, dwContentLen, bShowConsole, NULL);
 		}
 		
+	} else {
+		// Otherwise: Full legacy
+		DropScriptToTemp(pBatContent, dwContentLen, szFilePath);
+		RunBatAsFile_Legacy_Internal(szFilePath, bShowConsole);
 	}
+#else
+	RunBatAsFile(pBatContent, dwContentLen);
+#endif
 	
-	if (g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE) {
-		RunBatAsFile(pBatContent, dwContentLen);
-	}
 }
 
 void StubProcess(){
@@ -319,7 +354,8 @@ void StubProcess(){
 			if (pLastSlash) *pLastSlash = _T('\0');
 			// Build inject text
 			TCHAR szInjectHeader[MAX_PATH * 3];
-			_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@chcp 65001 >nul\r\n@set RESDIR=%s\r\n@set EXEPATH=%s\r\n"), g_szSessionResPath, szExePath);
+			//_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@chcp 65001 >nul\n@set RESDIR=%s\n@set EXEPATH=%s\n"), g_szSessionResPath, szExePath);
+			_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@echo off\n@chcp 65001 >nul\n@set \"RESDIR=%s\"\n@set \"EXEPATH=%s\"\n"), g_szSessionResPath, szExePath);
 			
 #ifdef UNICODE
 			// Convert wide header in UNICODE to ANSI for script
