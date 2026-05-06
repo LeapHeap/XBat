@@ -94,13 +94,16 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 	si.wShowWindow = bShowConsole ? SW_SHOW : SW_HIDE;
 	if (pBatPath) {
 		// Fatih mode: inherit stdin handle of parent process
-		si.hStdInput = GetStdHandle(STD_INPUT_HANDLE); 
+		si.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
+		si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+		si.hStdError  = GetStdHandle(STD_ERROR_HANDLE);
 	} else {
-		// Memory mode
+		// Memory mode: redirect to pipe
 		si.hStdInput = hInRead;
+		si.hStdOutput = hOutWrite;
+		si.hStdError = hOutWrite;
 	}
-	si.hStdOutput = hOutWrite;
-	si.hStdError = hOutWrite;
+
 	
 	if (!CreateProcessA(NULL, cmdLine, NULL, NULL, TRUE, CREATE_NEW_PROCESS_GROUP, NULL, NULL, &si, &pi)) {
 		return FALSE;
