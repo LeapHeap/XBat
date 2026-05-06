@@ -5,10 +5,11 @@
 #define _UNICODE
 #endif
 
-#define ENABLE_LZMA
+//#define ENABLE_LZMA
 #define ENABLE_PIPE
-//#define RUN_AS_FILE
+#define RUN_AS_FILE
 #define SHOW_CONSOLE
+//define ADD_USER_RES
 
 #include <stdio.h>
 #include <windows.h>
@@ -168,16 +169,21 @@ void CreateTestStub(LPCTSTR szStubPath, LPCTSTR szOutputPath) {
 	}
 	
 	DWORD dwScriptLen = 0;
-	BYTE* pScriptBuffer = LoadFileToBuffer(_T("test.bat"), &dwScriptLen);
+	BYTE* pScriptBuffer = LoadFileToBuffer(_T("test_ansi.bat"), &dwScriptLen);
 	if (!pScriptBuffer) return;
 	
+#ifdef ADD_USER_RES
 	DWORD dwRes1Len = 0, dwRes2Len = 0;
 	BYTE* pRes1 = LoadFileToBuffer(_T("test1.jpg"), &dwRes1Len);
 	BYTE* pRes2 = LoadFileToBuffer(_T("test2.exe"), &dwRes2Len);
+#endif
 	
 	if (!CopyFile(szStubPath, szOutputPath, FALSE)) {
 		if (pScriptBuffer) free(pScriptBuffer);
+		
+#ifdef ADD_USER_RES
 		if (pRes1) free(pRes1); if (pRes2) free(pRes2);
+#endif
 		return;
 	}
 	
@@ -191,6 +197,7 @@ void CreateTestStub(LPCTSTR szStubPath, LPCTSTR szOutputPath) {
 		
 		PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pScriptBuffer, dwScriptLen, rawKey, NULL, 0, bEnableLzma);
 		
+#ifdef ADD_USER_RES
 		int nCurrentID = 501;
 		if (pRes1 && nCurrentID <= 900) {
 			PackAndInjectResourceEx(hUpdate, nCurrentID++, pRes1, dwRes1Len, rawKey, _T("test1.jpg"), FILE_ATTRIBUTE_HIDDEN, bEnableLzma);
@@ -198,13 +205,17 @@ void CreateTestStub(LPCTSTR szStubPath, LPCTSTR szOutputPath) {
 		if (pRes2 && nCurrentID <= 900) {
 			PackAndInjectResourceEx(hUpdate, nCurrentID++, pRes2, dwRes2Len, rawKey, _T("test2.exe"), FILE_ATTRIBUTE_NORMAL, bEnableLzma);
 		}
+#endif
 		
 		EndUpdateResource(hUpdate, FALSE);
 	}
 	
 	if (pScriptBuffer) free(pScriptBuffer);
+	
+#ifdef ADD_USER_RES
 	if (pRes1) free(pRes1);
 	if (pRes2) free(pRes2);
+#endif
 	
 	_tprintf(_T("Created: %s (LZMA: %s)\n"), szOutputPath, bEnableLzma ? _T("ON") : _T("OFF"));
 }

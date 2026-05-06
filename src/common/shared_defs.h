@@ -16,6 +16,7 @@
 #define XBAT_DROP_DIR_CURR		1
 
 #define XBAT_FINAL_KEY_LENGTH 16
+#define XBAT_RES_FILE_NAME_LENGTH 64
 #define XBAT_CONSOLE_TITLE_LENGTH 64
 
 // Res
@@ -32,7 +33,7 @@ typedef struct {
 	UINT SavedCrc;
 	DWORD dwOriginalSize;
 	DWORD dwAttributes;
-	TCHAR szFileName[MAX_PATH];
+	TCHAR szFileName[XBAT_RES_FILE_NAME_LENGTH];
 	BYTE Data[1];
 } XBAT_RES_HEADER;
 #pragma pack(pop)

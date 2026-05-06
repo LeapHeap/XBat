@@ -12,7 +12,7 @@ MakeIncludes =
 PrivateResource = 
 Compiler = -DMODE_FULL -DUNICODE -D_UNICODE
 CppCompiler = 
-Linker =  F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/lzmadec/LzmaDec.o
+Linker = F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/lzmadec/LzmaDec.o
 ResourceCommand = 
 IsCpp = 0
 Icon = 
@@ -64,24 +64,24 @@ SyncProduct = 1
 
 
 [Unit1]
-FileName = stub_full.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = ASCII
-
-
-[Unit2]
 FileName = ../../common/crypto.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
 Link = 1
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
+[Unit2]
+FileName = ../../common/crypto.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
 Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
@@ -103,7 +103,7 @@ RealEncoding = ASCII
 
 
 [Unit4]
-FileName = ../../common/shared_defs.h
+FileName = stub_full.h
 CompileCpp = 0
 Folder = Headers
 Compile = 0
@@ -112,11 +112,11 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = ASCII
+RealEncoding = UTF-8
 
 
 [Unit5]
-FileName = ../../common/crypto.h
+FileName = ../../common/shared_defs.h
 CompileCpp = 0
 Folder = Headers
 Compile = 0

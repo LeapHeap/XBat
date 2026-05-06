@@ -286,7 +286,7 @@ void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
 
 			DropScriptToTemp(pBatContent, dwContentLen, szFilePath);
 #ifdef UNICODE
-			pszFilePathA = WCharToUtf8(szFilePath);
+			pszFilePathA = WCharToAnsi(szFilePath);
 			RunBatPipe(NULL, 0, bShowConsole, pszFilePathA);
 			free(pszFilePathA);
 #else
@@ -354,14 +354,13 @@ void StubProcess(){
 			if (pLastSlash) *pLastSlash = _T('\0');
 			// Build inject text
 			TCHAR szInjectHeader[MAX_PATH * 3];
-			//_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@chcp 65001 >nul\n@set RESDIR=%s\n@set EXEPATH=%s\n"), g_szSessionResPath, szExePath);
-			_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@echo off\n@chcp 65001 >nul\n@set \"RESDIR=%s\"\n@set \"EXEPATH=%s\"\n"), g_szSessionResPath, szExePath);
+			_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@set \"RESDIR=%s\"\n@set \"EXEPATH=%s\"\n"), g_szSessionResPath, szExePath);
 			
 #ifdef UNICODE
 			// Convert wide header in UNICODE to ANSI for script
-			int nHeaderLen = WideCharToMultiByte(CP_UTF8, 0, szInjectHeader, -1, NULL, 0, NULL, NULL) - 1;
+			int nHeaderLen = WideCharToMultiByte(CP_ACP, 0, szInjectHeader, -1, NULL, 0, NULL, NULL) - 1;
 			char* pHeaderA = (char*)malloc(nHeaderLen + 1);
-			WideCharToMultiByte(CP_UTF8, 0, szInjectHeader, -1, pHeaderA, nHeaderLen + 1, NULL, NULL);
+			WideCharToMultiByte(CP_ACP, 0, szInjectHeader, -1, pHeaderA, nHeaderLen + 1, NULL, NULL);
 #else
 			int nHeaderLen = _tcslen(szInjectHeader);
 			char* pHeaderA = szInjectHeader; // Point to ANSI header directly
