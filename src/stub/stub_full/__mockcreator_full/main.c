@@ -7,8 +7,8 @@
 
 //#define ENABLE_LZMA
 #define ENABLE_PIPE
-#define RUN_AS_FILE
-#define SHOW_CONSOLE
+//#define RUN_AS_FILE
+//#define SHOW_CONSOLE
 //define ADD_USER_RES
 
 #include <stdio.h>

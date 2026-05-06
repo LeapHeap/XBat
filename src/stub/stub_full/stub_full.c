@@ -70,14 +70,15 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 	
 	if (pBatContent && dwSize == 0) return FALSE;
 	
-	if (!CreatePipe(&hInRead, &hInWrite, &sa, 0)) return FALSE;
-	if (!CreatePipe(&hOutRead, &hOutWrite, &sa, 0)) {
-		CloseHandle(hInRead); CloseHandle(hInWrite);
-		return FALSE;
+	if (!pBatPath && pBatContent){
+		if (!CreatePipe(&hInRead, &hInWrite, &sa, 0)) return FALSE;
+		if (!CreatePipe(&hOutRead, &hOutWrite, &sa, 0)) {
+			CloseHandle(hInRead); CloseHandle(hInWrite);
+			return FALSE;
+		}
+		SetHandleInformation(hInWrite, HANDLE_FLAG_INHERIT, 0);
+		SetHandleInformation(hOutRead, HANDLE_FLAG_INHERIT, 0);
 	}
-	
-	SetHandleInformation(hInWrite, HANDLE_FLAG_INHERIT, 0);
-	SetHandleInformation(hOutRead, HANDLE_FLAG_INHERIT, 0);
 	
 	char cmdLine[MAX_PATH + 64];
 	if (pBatPath) {
@@ -103,47 +104,50 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 		si.hStdOutput = hOutWrite;
 		si.hStdError = hOutWrite;
 	}
-
 	
-	if (!CreateProcessA(NULL, cmdLine, NULL, NULL, TRUE, CREATE_NEW_PROCESS_GROUP, NULL, NULL, &si, &pi)) {
+	// Solve the appstarting cursor problem
+	MSG msg;
+	PostThreadMessage(GetCurrentThreadId(), WM_USER, 0, 0);
+	PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+	
+	if (!CreateProcessA(NULL, cmdLine, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+		// Clean
+		if (!pBatPath) {
+			CloseHandle(hInRead); CloseHandle(hInWrite);
+			CloseHandle(hOutRead); CloseHandle(hOutWrite);
+		}
 		return FALSE;
 	}
 	
-	CloseHandle(hInRead);
-	CloseHandle(hOutWrite);
 	
-	THREAD_PARAMS* pParams = (THREAD_PARAMS*)malloc(sizeof(THREAD_PARAMS));
-	if (pParams) {
-		pParams->hPipeRead = hOutRead;
-		pParams->bSilent = !bShowConsole;
-		_beginthreadex(NULL, 0, OutputReaderThread, pParams, 0, NULL);
-	}
-	
-	DWORD dwWritten;
-	
-	// Memory mode
-	if (!pBatPath && pBatContent) {
-		// Force return to avoid problems caused by /K startup
-		WriteFile(hInWrite, "\n", 1, &dwWritten, NULL);
+	if (!pBatPath) {
+		CloseHandle(hInRead);
+		CloseHandle(hOutWrite);
 		
-		// Write script content
+		THREAD_PARAMS* pParams = (THREAD_PARAMS*)malloc(sizeof(THREAD_PARAMS));
+		if (pParams) {
+			pParams->hPipeRead = hOutRead;
+			pParams->bSilent = !bShowConsole;
+			_beginthreadex(NULL, 0, OutputReaderThread, pParams, 0, NULL);
+		}
+		
+		DWORD dwWritten;
+		WriteFile(hInWrite, "\n", 1, &dwWritten, NULL);
 		WriteFile(hInWrite, pBatContent, dwSize, &dwWritten, NULL);
-		
-		// Force return at the end
-		WriteFile(hInWrite, "\n", 1, &dwWritten, NULL);
-		
-		// Send exit command
 		WriteFile(hInWrite, "\nexit\n", 6, &dwWritten, NULL);
-
+		
+		CloseHandle(hInWrite);
 	}
 	
-	if (bShowConsole){
+	// Wait
+	if (bShowConsole) {
 		WaitForSingleObject(pi.hProcess, INFINITE);
 	}
 	
-	// Clean handles
-	CloseHandle(hInWrite);
-	CloseHandle(hOutRead);
+	if (!pBatPath) {
+		CloseHandle(hOutRead);
+	}
+
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
 	
