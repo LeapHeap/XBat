@@ -8,8 +8,9 @@
 #include <windows.h>
 #include <tchar.h>
 #include <time.h>
-#include "../common/crypto.h"
 #include "../common/shared_defs.h"
+#include "../common/crypto.h"
+#include "../common/Utils.h"
 
 #ifdef MODE_FULL
 #include "stub_full/stub_full.h"
@@ -56,7 +57,6 @@ char* WCharToAnsi(const WCHAR* wideStr) {
 	return multiStr;
 }
 
-void XBat_GenerateRandomString(TCHAR *pszBuffer, DWORD dwSize);
 
 BOOL DirectoryExists(LPCTSTR szPath)
 {
@@ -303,7 +303,8 @@ void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
 		RunBatAsFile_Legacy_Internal(szFilePath, bShowConsole);
 	}
 #else
-	RunBatAsFile(pBatContent, dwContentLen);
+	DropScriptToTemp(pBatContent, dwContentLen, szFilePath);
+	RunBatAsFile_Legacy_Internal(szFilePath, bShowConsole);
 #endif
 	
 }
@@ -412,21 +413,6 @@ void StubDestroy(){
 	
 }
 
-
-void XBat_GenerateRandomString(TCHAR *pszBuffer, DWORD dwSize)
-{
-	if (pszBuffer == NULL || dwSize < 5) return;
-	
-	const TCHAR szChars[] = _T("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-	const int nCharCount = _tcslen(szChars);
-	
-	for (int i = 0; i < 4; i++)
-	{
-		int idx = rand() % nCharCount;
-		pszBuffer[i] = szChars[idx];
-	}
-	pszBuffer[4] = _T('\0');
-}
 
 void InitSessionDropPath(){
 	

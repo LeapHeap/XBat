@@ -1,7 +1,7 @@
 [Project]
 filename = stub_full.dev
 name = stub_full
-UnitCount = 6
+UnitCount = 7
 Type = 0
 Ver = 3
 Includes = 
@@ -64,7 +64,7 @@ SyncProduct = 1
 
 
 [Unit1]
-FileName = ../../common/crypto.c
+FileName = ../../common/Utils.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
@@ -77,7 +77,20 @@ RealEncoding = UTF-8
 
 
 [Unit2]
-FileName = ../../common/crypto.h
+FileName = ../../common/crypto.c
+CompileCpp = 0
+Folder = Sources
+Compile = 1
+Link = 1
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
+[Unit3]
+FileName = stub_full.h
 CompileCpp = 0
 Folder = Headers
 Compile = 0
@@ -89,25 +102,12 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit3]
-FileName = ../main.c
+[Unit4]
+FileName = stub_full.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
 Link = 1
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = ASCII
-
-
-[Unit4]
-FileName = stub_full.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
 Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
@@ -129,7 +129,7 @@ RealEncoding = UTF-8
 
 
 [Unit6]
-FileName = stub_full.c
+FileName = ../main.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
@@ -138,7 +138,7 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = UTF-8
+RealEncoding = ASCII
 
 
 [Unit7]

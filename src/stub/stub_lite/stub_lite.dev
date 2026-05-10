@@ -64,7 +64,7 @@ SyncProduct = 1
 
 
 [Unit1]
-FileName = ../main.c
+FileName = ../../common/crypto.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
@@ -73,7 +73,7 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = UTF-8
+RealEncoding = ASCII
 
 
 [Unit2]
@@ -90,19 +90,6 @@ RealEncoding = ASCII
 
 
 [Unit3]
-FileName = ../../common/crypto.c
-CompileCpp = 0
-Folder = Sources
-Compile = 1
-Link = 1
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = ASCII
-
-
-[Unit4]
 FileName = ../../common/crypto.h
 CompileCpp = 0
 Folder = Headers
@@ -113,6 +100,19 @@ OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
 RealEncoding = ASCII
+
+
+[Unit4]
+FileName = ../main.c
+CompileCpp = 0
+Folder = Sources
+Compile = 1
+Link = 1
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
 
 
 [CompilerSettings]
