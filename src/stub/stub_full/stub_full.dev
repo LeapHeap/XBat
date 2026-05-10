@@ -1,7 +1,7 @@
 [Project]
 filename = stub_full.dev
 name = stub_full
-UnitCount = 7
+UnitCount = 8
 Type = 0
 Ver = 3
 Includes = 
@@ -12,7 +12,7 @@ MakeIncludes =
 PrivateResource = 
 Compiler = -DMODE_FULL -DUNICODE -D_UNICODE
 CppCompiler = 
-Linker = F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/lzmadec/LzmaDec.o
+Linker = F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/lzmadec/LzmaDec.o -Wl,--gc-sections
 ResourceCommand = 
 IsCpp = 0
 Icon = 
@@ -64,19 +64,6 @@ SyncProduct = 1
 
 
 [Unit1]
-FileName = ../../common/Utils.c
-CompileCpp = 0
-Folder = Sources
-Compile = 1
-Link = 1
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = UTF-8
-
-
-[Unit2]
 FileName = ../../common/crypto.c
 CompileCpp = 0
 Folder = Sources
@@ -89,7 +76,7 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit3]
+[Unit2]
 FileName = stub_full.h
 CompileCpp = 0
 Folder = Headers
@@ -102,8 +89,34 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
+[Unit3]
+FileName = ../../common/crypto.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
 [Unit4]
-FileName = stub_full.c
+FileName = ../../common/vc6_patch.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = 
+
+
+[Unit5]
+FileName = ../../common/Utils.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
@@ -115,7 +128,7 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit5]
+[Unit6]
 FileName = ../../common/shared_defs.h
 CompileCpp = 0
 Folder = Headers
@@ -128,7 +141,7 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit6]
+[Unit7]
 FileName = ../main.c
 CompileCpp = 0
 Folder = Sources
@@ -138,28 +151,15 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = ASCII
-
-
-[Unit7]
-FileName = ../../common/crypto.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
 [Unit8]
-FileName = ../../common/crypto.h
+FileName = stub_full.c
 CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
+Folder = Sources
+Compile = 1
+Link = 1
 Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 

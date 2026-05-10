@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <tchar.h>
 
+#include "vc6_patch.h"
+
 void XBat_GenerateRandomString(TCHAR* pszBuffer, DWORD dwSize)
 {
 	if (pszBuffer == NULL || dwSize < 5) return;
@@ -19,20 +21,6 @@ void XBat_GenerateRandomString(TCHAR* pszBuffer, DWORD dwSize)
 }
 
 #ifdef MODE_CONVERTER
-//void XBat_GenerateRandomStringA(CHAR* pszBuffer, DWORD dwSize)
-//{
-//	if (pszBuffer == NULL || dwSize < 5) return;
-//
-//	const CHAR szChars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-//	const int nCharCount = strlen(szChars);
-//
-//	for (int i = 0; i < 4; i++)
-//	{
-//		int idx = rand() % nCharCount;
-//		pszBuffer[i] = szChars[idx];
-//	}
-//	pszBuffer[4] = '\0';
-//}
 #include <wincrypt.h>
 
 BOOL XBat_GenerateRandomBytes(BYTE* lpBuffer, DWORD dwSize) {

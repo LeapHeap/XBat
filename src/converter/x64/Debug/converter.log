@@ -1,2 +1,3 @@
 ﻿  converter.cpp
-  converter.vcxproj -> F:\_lzy_files\lh_codes\XBat\x64\Debug\converter.exe
+F:\_lzy_files\lh_codes\XBat\src\converter\converter.cpp(68,7): warning C4101: 'propsEncoded': unreferenced local variable
+  converter.vcxproj -> F:\_lzy_files\lh_codes\XBat\bin\x64\converter.exe

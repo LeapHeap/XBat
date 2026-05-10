@@ -11,6 +11,7 @@
 #include <io.h>
 #include <fcntl.h>
 
+#include "../../common/vc6_patch.h"
 
 // LZMA sdk allocator
 static void* SzAlloc(ISzAllocPtr p, size_t size) { return malloc(size); }

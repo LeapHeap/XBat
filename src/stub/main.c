@@ -12,6 +12,8 @@
 #include "../common/crypto.h"
 #include "../common/Utils.h"
 
+#include "../common/vc6_patch.h"
+
 #ifdef MODE_FULL
 #include "stub_full/stub_full.h"
 #endif
