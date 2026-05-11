@@ -11,6 +11,8 @@
 #define XBAT_FLAG_LZMA_COMPRESSED		(1 << 2)
 #define XBAT_FLAG_HAS_USER_RESOURCES	(1 << 3)
 #define XBAT_FLAG_USE_PIPE				(1 << 4)
+#define XBAT_FLAG_SELF_DESTROY			(1 << 5) // Only for debugging use, should be enabled by default
+#define XBAT_FLAG_DESTROY_RESOURCES		(1 << 6) // Destroy resource at exit. Does NOT work if XBAT_FLAG_SELF_DESTROY not enabled.
 
 #define XBAT_DROP_DIR_TEMP		0
 #define XBAT_DROP_DIR_CURR		1

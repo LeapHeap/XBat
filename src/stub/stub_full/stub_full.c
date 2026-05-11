@@ -81,13 +81,16 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 		SetHandleInformation(hOutRead, HANDLE_FLAG_INHERIT, 0);
 	}
 	
-	char cmdLine[MAX_PATH + 64];
+	char cmdLine[MAX_PATH + 128];
+	ZeroMemory(cmdLine, sizeof(cmdLine));
 	if (pBatPath) {
 		// Fatih-like mode
-		sprintf(cmdLine, "cmd.exe /Q /D /C \"\"%s\"\"", pBatPath);
+		_snprintf(cmdLine, SAFE_LEN(sizeof(cmdLine)), "cmd.exe /Q /D /C \"\"%s\"\"", pBatPath);
+		SET_STOPPER(cmdLine, sizeof(cmdLine));
 	} else {
 		// Memory mode
-		strcpy(cmdLine, "cmd.exe /Q /D /K \"@echo off\"");
+		_snprintf(cmdLine, SAFE_LEN(sizeof(cmdLine)), "cmd.exe /Q /D /K \"@echo off\"");
+		SET_STOPPER(cmdLine, sizeof(cmdLine));
 	}
 	
 	STARTUPINFOA si = { sizeof(si) };

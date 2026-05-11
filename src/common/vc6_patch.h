@@ -44,4 +44,8 @@ extern "C" {
 
 #endif
 
+// String safter macro
+#define SET_STOPPER(buf, size) ((buf)[(size) - 1] = _T('\0'))
+#define SAFE_LEN(x) ((x) - 1)
+
 #endif

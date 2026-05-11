@@ -64,7 +64,20 @@ SyncProduct = 1
 
 
 [Unit1]
-FileName = stub_full.h
+FileName = stub_full.c
+CompileCpp = 0
+Folder = Sources
+Compile = 1
+Link = 1
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = ASCII
+
+
+[Unit2]
+FileName = ../../common/vc6_patch.h
 CompileCpp = 0
 Folder = Headers
 Compile = 0
@@ -73,10 +86,10 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = UTF-8
+RealEncoding = ASCII
 
 
-[Unit2]
+[Unit3]
 FileName = ../../common/crypto.c
 CompileCpp = 0
 Folder = Sources
@@ -89,46 +102,7 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit3]
-FileName = ../../common/crypto.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = UTF-8
-
-
 [Unit4]
-FileName = stub_full.c
-CompileCpp = 0
-Folder = Sources
-Compile = 1
-Link = 1
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = UTF-8
-
-
-[Unit5]
-FileName = ../main.c
-CompileCpp = 0
-Folder = Sources
-Compile = 1
-Link = 1
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = UTF-8
-
-
-[Unit6]
 FileName = ../../common/Utils.c
 CompileCpp = 0
 Folder = Sources
@@ -141,7 +115,20 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit7]
+[Unit5]
+FileName = ../../common/crypto.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
+[Unit6]
 FileName = ../../common/Utils.h
 CompileCpp = 0
 Folder = Headers
@@ -154,8 +141,21 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
+[Unit7]
+FileName = ../../common/shared_defs.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
 [Unit8]
-FileName = ../../common/vc6_patch.h
+FileName = stub_full.h
 CompileCpp = 0
 Folder = Headers
 Compile = 0
@@ -168,16 +168,16 @@ RealEncoding = UTF-8
 
 
 [Unit9]
-FileName = ../../common/shared_defs.h
+FileName = ../main.c
 CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
+Folder = Sources
+Compile = 1
+Link = 1
 Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = UTF-8
+RealEncoding = ASCII
 
 
 [CompilerSettings]

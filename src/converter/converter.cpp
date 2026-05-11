@@ -124,7 +124,7 @@ static BOOL PackAndInjectResourceEx(
 
 	memset(pHeader->szFileName, 0, sizeof(pHeader->szFileName));
 	if (szTargetFileName) {
-		_tcscpy_s(pHeader->szFileName, MAX_PATH, szTargetFileName);
+		_tcscpy_s(pHeader->szFileName, XBAT_RES_FILE_NAME_LENGTH, szTargetFileName);
 	}
 
 	memcpy(pHeader->Data, pFinalDataToEncrypt, dwFinalDataLen);
@@ -188,16 +188,18 @@ int main(int argc, char* argv[]) {
 	_tprintf(_T("Debug mode\r\n"));
 	XBAT_CONFIG cfg = { 0 };
 	cfg.Magic = XBAT_MAGIC_INT;
-	cfg.GlobalFlags = XBAT_FLAG_HAS_USER_RESOURCES | XBAT_FLAG_USE_PIPE | XBAT_FLAG_RUN_BAT_AS_FILE | XBAT_FLAG_LZMA_COMPRESSED;
+	cfg.GlobalFlags = XBAT_FLAG_USE_PIPE | XBAT_FLAG_LZMA_COMPRESSED | XBAT_FLAG_DESTROY_RESOURCES | XBAT_FLAG_SELF_DESTROY;
 	cfg.GlobalFlags |= XBAT_FLAG_SHOW_CONSOLE;
+	//cfg.GlobalFlags |= XBAT_FLAG_RUN_BAT_AS_FILE;
+	cfg.GlobalFlags |= XBAT_FLAG_HAS_USER_RESOURCES;
 	cfg.DropDirType = XBAT_DROP_DIR_TEMP;
 	strcpy_s(cfg.szConsoleTitle, XBAT_CONSOLE_TITLE_LENGTH, "Test Stub");
-	_tcscpy_s(g_szScriptPath, _countof(g_szScriptPath), _T("test_ansi.bat"));
+	_tcscpy_s(g_szScriptPath, _countof(g_szScriptPath), _T("test_memory.bat"));
 
 	XBAT_RESOURCE res1 = { 0 };
 	_tcscpy_s(res1.szFilePath, MAX_PATH, _T("test1.jpg"));
 	res1.dwFileSize = 0;
-	res1.dwFileAttribute = FILE_ATTRIBUTE_HIDDEN;
+	res1.dwFileAttribute = FILE_ATTRIBUTE_NORMAL;
 	g_ResList.push_back(res1);
 
 	ConverterProcess(&cfg, _T("templates\\x64\\stub_full.bin"), _T("TestStub.exe"));

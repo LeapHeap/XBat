@@ -1,7 +1,7 @@
-#ifndef MODE_VC6
-#ifndef MODE_FULL
+
+#if !defined(MODE_VC6) && !defined(MODE_FULL) && !defined(BUILDING_LITE)
+// For editor preview
 #define MODE_FULL
-#endif
 #ifndef UNICODE
 #define UNICODE
 #define _UNICODE
@@ -27,6 +27,7 @@ BYTE XBatMagic[] = XBAT_MAGIC_DATA;
 XBAT_CONFIG g_Config;
 TCHAR g_szSessionDropPath[MAX_PATH];
 TCHAR g_szSessionResPath[MAX_PATH];
+TCHAR g_szSessionScriptPath[MAX_PATH];
 //TCHAR g_szBatWorkDir[MAX_PATH];
 
 char* WCharToUtf8(const WCHAR* wideStr) {
@@ -65,8 +66,9 @@ char* WCharToAnsi(const WCHAR* wideStr) {
 static void ShowErrorMessage(LPCTSTR lpszMsg) {
 	DWORD dwErr = GetLastError();
 	TCHAR szBuf[256];
-	_sntprintf(szBuf, _countof(szBuf), _T("%s. Error: %u (0x%08X)"), lpszMsg, dwErr, dwErr);
-	szBuf[_countof(szBuf)-1] = _T('\0');
+	_sntprintf(szBuf, SAFE_LEN(_countof(szBuf)), _T("%s. Error: %u (0x%08X)"), lpszMsg, dwErr, dwErr);
+	SET_STOPPER(szBuf, _countof(szBuf));
+	
 	MessageBox(NULL, szBuf, _T("Stub Error"), MB_ICONERROR);
 }
 
@@ -184,7 +186,8 @@ BYTE* XBat_ExtractResourceEx(const LPVOID pData, DWORD dwSize, const BYTE* pKey,
 
 
 void InitResPath(){
-	_sntprintf(g_szSessionResPath, MAX_PATH, _T("%s\\Res"),g_szSessionDropPath);
+	_sntprintf(g_szSessionResPath, SAFE_LEN(MAX_PATH), _T("%s\\Res"),g_szSessionDropPath);
+	SET_STOPPER(g_szSessionResPath, MAX_PATH);
 	CreateDirectory(g_szSessionResPath, NULL);
 	
 }
@@ -226,8 +229,8 @@ BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG
 		
 		if (pContent && s_szFileName[0] != _T('\0')){
 			// Safe string printer
-			_sntprintf(s_szFullPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, s_szFileName);
-			s_szFullPath[MAX_PATH - 1] = _T('\0');
+			_sntprintf(s_szFullPath, SAFE_LEN(MAX_PATH), _T("%s\\%s"), g_szSessionResPath, s_szFileName);
+			SET_STOPPER(s_szFullPath, MAX_PATH);
 			
 			HANDLE hFile = CreateFile(s_szFullPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 			if (hFile != INVALID_HANDLE_VALUE) {
@@ -243,8 +246,8 @@ BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG
 }
 
 
-BOOL DropScriptToTemp(BYTE* pBatContent, DWORD dwContentLen, TCHAR* szOutPath) {
-	if (pBatContent == NULL || dwContentLen == 0 || szOutPath == NULL) return FALSE;
+BOOL DropScriptToTemp(BYTE* pBatContent, DWORD dwContentLen, LPTSTR lpszOutPath) {
+	if (pBatContent == NULL || dwContentLen == 0 || lpszOutPath == NULL) return FALSE;
 	
 	if (!CreateDirectory(g_szSessionDropPath, NULL)) {
 		if (GetLastError() != ERROR_ALREADY_EXISTS) return FALSE;
@@ -252,11 +255,15 @@ BOOL DropScriptToTemp(BYTE* pBatContent, DWORD dwContentLen, TCHAR* szOutPath) {
 	
 	TCHAR szRandom[5] = { 0 };
 	XBat_GenerateRandomString(szRandom, 5);
-	_sntprintf(szOutPath, MAX_PATH, _T("%s\\%s.bat"), g_szSessionDropPath, szRandom);
+	_sntprintf(lpszOutPath, SAFE_LEN(MAX_PATH), _T("%s\\%s.bat"), g_szSessionDropPath, szRandom);
+	SET_STOPPER(lpszOutPath, MAX_PATH);
 	
-	HANDLE hFile = CreateFile(szOutPath, GENERIC_WRITE, 0, NULL, 
+	HANDLE hFile = CreateFile(lpszOutPath, GENERIC_WRITE, 0, NULL, 
 							  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) return FALSE;
+	
+	_tcsncpy(g_szSessionScriptPath, lpszOutPath, MAX_PATH - 1);
+	g_szSessionScriptPath[MAX_PATH - 1] = _T('\0');
 	
 	DWORD dwWritten = 0;
 	BOOL bRet = WriteFile(hFile, pBatContent, dwContentLen, &dwWritten, NULL);
@@ -273,7 +280,8 @@ void RunBatAsFile_Legacy_Internal(TCHAR* lpszFilePath, BOOL bShow) {
 	si.wShowWindow = bShow ? SW_SHOW : SW_HIDE;
 	
 	TCHAR szCmdLine[MAX_PATH + 32];
-	_sntprintf(szCmdLine, _countof(szCmdLine), _T("cmd.exe /c \"%s\""), lpszFilePath);
+	_sntprintf(szCmdLine, SAFE_LEN(_countof(szCmdLine)), _T("cmd.exe /c \"%s\""), lpszFilePath);
+	SET_STOPPER(szCmdLine, _countof(szCmdLine));
 	
 	DWORD dwFlags = bShow ? 0 : CREATE_NO_WINDOW;
 	if (CreateProcess(NULL, szCmdLine, NULL, NULL, FALSE, dwFlags, NULL, NULL, &si, &pi)) {
@@ -393,7 +401,8 @@ void StubProcess(){
 			if (pLastSlash) *pLastSlash = _T('\0');
 			// Build inject text
 			TCHAR szInjectHeader[MAX_PATH * 3];
-			_sntprintf(szInjectHeader, _countof(szInjectHeader), _T("@set \"RESDIR=%s\"\n@set \"EXEPATH=%s\"\n"), g_szSessionResPath, szExePath);
+			_sntprintf(szInjectHeader, SAFE_LEN( _countof(szInjectHeader) ), _T("@set \"RESDIR=%s\"\n@set \"EXEPATH=%s\"\n"), g_szSessionResPath, szExePath);
+			SET_STOPPER(szInjectHeader, _countof(szInjectHeader));
 			
 #ifdef UNICODE
 			// Convert wide header in UNICODE to ANSI for script
@@ -439,24 +448,44 @@ void StubProcess(){
 }
 
 
-void StubDestroy(){
-	if (DirectoryExists(g_szSessionDropPath)){
-		SHFILEOPSTRUCT shfo;
-		ZeroMemory(&shfo, sizeof(shfo));
-		
-		TCHAR szDelPath[MAX_PATH + 1];
-		ZeroMemory(szDelPath, sizeof(szDelPath));
-		
-		_tcscpy(szDelPath, g_szSessionDropPath);
-		
-		shfo.pFrom = szDelPath;
-		shfo.wFunc = FO_DELETE;
-		shfo.fFlags = FOF_NOCONFIRMATION | FOF_SILENT;
-		
-		SHFileOperation(&shfo);
+void StubDestroy() {
+	if (!DirectoryExists(g_szSessionDropPath)) return;
+	
+	SHFILEOPSTRUCT shfo;
+	TCHAR szDelPath[MAX_PATH + 2]; 
+	ZeroMemory(szDelPath, sizeof(szDelPath));
+	ZeroMemory(&shfo, sizeof(shfo));
+	
+	BOOL bDeleteRoot = TRUE;
+	
+	if (!(g_Config.GlobalFlags & XBAT_FLAG_DESTROY_RESOURCES) && 
+		(g_Config.DropDirType != XBAT_DROP_DIR_TEMP)) 
+	{
+		bDeleteRoot = FALSE;
 	}
 	
+	if (bDeleteRoot) {
+		_tcsncpy(szDelPath, g_szSessionDropPath, MAX_PATH);
+	} else {
+		// Delete script only
+		if (_tcslen(g_szSessionScriptPath) > 0) {
+			_tcsncpy(szDelPath, g_szSessionScriptPath, MAX_PATH);
+		} else {
+			return;
+		}
+	}
 	
+	// SHFileOperation must be terminated with double NULL
+	size_t nLen = _tcslen(szDelPath);
+	szDelPath[nLen] = _T('\0');
+	szDelPath[nLen + 1] = _T('\0');
+	
+	shfo.pFrom = szDelPath;
+	shfo.wFunc = FO_DELETE;
+	// FOF_NOERRORUI:
+	shfo.fFlags = FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI;
+	
+	SHFileOperation(&shfo);
 }
 
 
@@ -482,7 +511,8 @@ void InitSessionDropPath(){
 	
 	TCHAR szRandom[5] = {0};
 	XBat_GenerateRandomString(szRandom, 5);
-	_sntprintf(g_szSessionDropPath, MAX_PATH, _T("%s\\XBAT.%s"), szTempPath, szRandom);
+	_sntprintf(g_szSessionDropPath, SAFE_LEN(MAX_PATH), _T("%s\\XBAT.%s"), szTempPath, szRandom);
+	SET_STOPPER(g_szSessionDropPath, MAX_PATH);
 	
 	// Create dir
 	CreateDirectory(g_szSessionDropPath, NULL);
@@ -500,7 +530,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	}
 	
 	StubProcess();
-	StubDestroy();
+	
+	if (g_Config.GlobalFlags & XBAT_FLAG_SELF_DESTROY){
+		StubDestroy();
+	}
 	
 	return 0;
 }

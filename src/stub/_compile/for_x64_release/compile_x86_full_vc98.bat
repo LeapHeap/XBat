@@ -10,12 +10,14 @@ set STUB_FULL_PATH=%STUB_ROOT_PATH%\stub_full
 set XBAT_COMMON_PATH=F:\_lzy_files\lh_codes\XBat\src\common
 set STUB_X86_OUTPUT_PATH=F:\_lzy_files\lh_codes\XBat\bin\x64\templates\x86
 
-:: Compile
-cl.exe /c /O1 /MD /nologo %LZMADEC_PATH%\LzmaDec.c /TP /GX- /GR-
-cl.exe /c /O1 /MD /nologo %STUB_ROOT_PATH%\main.c /TP /GX- /GR- /DMODE_VC6 /DMODE_FULL /DUNICODE /D_UNICODE
-cl.exe /c /O1 /MD /nologo %STUB_FULL_PATH%\stub_full.c /TP /GX- /GR- /DMODE_VC6 /DMODE_FULL /DUNICODE /D_UNICODE
-cl.exe /c /O1 /MD /nologo %XBAT_COMMON_PATH%\crypto.c /TP /GX- /GR- /DMODE_FULL /DUNICODE /D_UNICODE
-cl.exe /c /O1 /MD /nologo %XBAT_COMMON_PATH%\Utils.c /TP /GX- /GR- /DMODE_VC6 /DMODE_FULL /DUNICODE /D_UNICODE
+set "COMMON_FLAGS=/TP /GX- /GR- /DMODE_VC6 /DUNICODE /D_UNICODE /DMODE_FULL"
+
+:: Compile (Using C++ mode)
+cl.exe /c /O1 /MD /nologo %LZMADEC_PATH%\LzmaDec.c %COMMON_FLAGS%
+cl.exe /c /O1 /MD /nologo %STUB_ROOT_PATH%\main.c %COMMON_FLAGS%
+cl.exe /c /O1 /MD /nologo %STUB_FULL_PATH%\stub_full.c %COMMON_FLAGS%
+cl.exe /c /O1 /MD /nologo %XBAT_COMMON_PATH%\crypto.c %COMMON_FLAGS%
+cl.exe /c /O1 /MD /nologo %XBAT_COMMON_PATH%\Utils.c %COMMON_FLAGS%
 
 ::Link
 link.exe LzmaDec.obj main.obj stub_full.obj crypto.obj Utils.obj /OUT:%STUB_X86_OUTPUT_PATH%\stub_full.bin /nologo /OPT:REF /OPT:ICF kernel32.lib shell32.lib user32.lib /SUBSYSTEM:WINDOWS

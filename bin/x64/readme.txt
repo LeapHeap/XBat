@@ -1,0 +1,1 @@
+Full-pipe mode does NOT support interactive I/O operations and pause command. It will CRASH if you violate the rule.
