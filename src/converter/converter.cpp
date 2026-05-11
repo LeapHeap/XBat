@@ -188,7 +188,8 @@ int main(int argc, char* argv[]) {
 	_tprintf(_T("Debug mode\r\n"));
 	XBAT_CONFIG cfg = { 0 };
 	cfg.Magic = XBAT_MAGIC_INT;
-	cfg.GlobalFlags = XBAT_FLAG_HAS_USER_RESOURCES | XBAT_FLAG_USE_PIPE | XBAT_FLAG_SHOW_CONSOLE | XBAT_FLAG_RUN_BAT_AS_FILE | XBAT_FLAG_LZMA_COMPRESSED;
+	cfg.GlobalFlags = XBAT_FLAG_HAS_USER_RESOURCES | XBAT_FLAG_USE_PIPE | XBAT_FLAG_RUN_BAT_AS_FILE | XBAT_FLAG_LZMA_COMPRESSED;
+	cfg.GlobalFlags |= XBAT_FLAG_SHOW_CONSOLE;
 	cfg.DropDirType = XBAT_DROP_DIR_TEMP;
 	strcpy_s(cfg.szConsoleTitle, XBAT_CONSOLE_TITLE_LENGTH, "Test Stub");
 	_tcscpy_s(g_szScriptPath, _countof(g_szScriptPath), _T("test_ansi.bat"));
@@ -200,9 +201,9 @@ int main(int argc, char* argv[]) {
 	g_ResList.push_back(res1);
 
 	ConverterProcess(&cfg, _T("templates\\x64\\stub_full.bin"), _T("TestStub.exe"));
+	ConverterProcess(&cfg, _T("templates\\x86\\stub_full.bin"), _T("TestStub_x86.exe"));
 	_tprintf(_T("Done\r\n"));
 #endif // DEBUG
-
 
 
 

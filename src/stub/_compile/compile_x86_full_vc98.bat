@@ -12,10 +12,13 @@ set STUB_X86_OUTPUT_PATH=F:\_lzy_files\lh_codes\XBat\bin\x64\templates\x86
 
 :: Compile
 cl.exe /c /O1 /MD /nologo %LZMADEC_PATH%\LzmaDec.c /TP /GX- /GR-
-cl.exe /c /O1 /MD /nologo %STUB_ROOT_PATH%\main.c /TP /GX- /GR- /DMODE_VC6
-cl.exe /c /O1 /MD /nologo %STUB_FULL_PATH%\stub_full.c /TP /GX- /GR- /DMODE_VC6
-cl.exe /c /O1 /MD /nologo %XBAT_COMMON_PATH%\crypto.c /TP /GX- /GR-
-cl.exe /c /O1 /MD /nologo %XBAT_COMMON_PATH%\Utils.c /TP /GX- /GR- /DMODE_VC6
+cl.exe /c /O1 /MD /nologo %STUB_ROOT_PATH%\main.c /TP /GX- /GR- /DMODE_VC6 /DMODE_FULL /DUNICODE /D_UNICODE
+cl.exe /c /O1 /MD /nologo %STUB_FULL_PATH%\stub_full.c /TP /GX- /GR- /DMODE_VC6 /DMODE_FULL /DUNICODE /D_UNICODE
+cl.exe /c /O1 /MD /nologo %XBAT_COMMON_PATH%\crypto.c /TP /GX- /GR- /DMODE_FULL /DUNICODE /D_UNICODE
+cl.exe /c /O1 /MD /nologo %XBAT_COMMON_PATH%\Utils.c /TP /GX- /GR- /DMODE_VC6 /DMODE_FULL /DUNICODE /D_UNICODE
 
 ::Link
-link.exe LzmaDec.obj main.obj stub_full.obj crypto.obj Utils.obj /OUT:%STUB_X86_OUTPUT_PATH%\stub_full.bin /nologo /OPT:REF /OPT:ICF kernel32.lib shell32.lib user32.lib
+link.exe LzmaDec.obj main.obj stub_full.obj crypto.obj Utils.obj /OUT:%STUB_X86_OUTPUT_PATH%\stub_full.bin /nologo /OPT:REF /OPT:ICF kernel32.lib shell32.lib user32.lib /SUBSYSTEM:WINDOWS
+
+::Clean
+del /s /f /q crypto.obj LzmaDec.obj main.obj stub_full.obj Utils.obj

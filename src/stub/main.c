@@ -97,7 +97,7 @@ BYTE* XBat_ExtractResource(const LPVOID pData, DWORD dwSize, const BYTE* pKey, i
 	if (Magic != *(UINT*)XBatMagic) return NULL;
 	
 	if (pszOutFileName){
-		_tcscpy_s(pszOutFileName, MAX_PATH, pHeader->szFileName);
+		_tcscpy(pszOutFileName, pHeader->szFileName);
 	}
 	
 	if (pdwOutAttrib) {
@@ -128,13 +128,14 @@ BYTE* XBat_ExtractResource(const LPVOID pData, DWORD dwSize, const BYTE* pKey, i
 	
 }
 
+// This is resource extractor with decompression function, 
 #ifdef MODE_FULL
 BYTE* XBat_ExtractResourceEx(const LPVOID pData, DWORD dwSize, const BYTE* pKey, int keyLength, DWORD* pOutLen, TCHAR* pszOutFileName, DWORD* pdwOutAttrib) {
 	if (!pData || !pKey) return NULL;
 	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)pData;
 	if (pHeader->Magic != *(UINT*)XBatMagic) return NULL;
 	
-	if (pszOutFileName) _tcscpy_s(pszOutFileName, MAX_PATH, pHeader->szFileName);
+	if (pszOutFileName) _tcscpy(pszOutFileName, pHeader->szFileName);
 	if (pdwOutAttrib) *pdwOutAttrib = pHeader->dwAttributes;
 	
 	UINT SavedCrc = pHeader->SavedCrc;
@@ -166,7 +167,7 @@ BYTE* XBat_ExtractResourceEx(const LPVOID pData, DWORD dwSize, const BYTE* pKey,
 
 
 void InitResPath(){
-	_stprintf_s(g_szSessionResPath, MAX_PATH, _T("%s\\Res"),g_szSessionDropPath);
+	_sntprintf(g_szSessionResPath, MAX_PATH, _T("%s\\Res"),g_szSessionDropPath);
 	CreateDirectory(g_szSessionResPath, NULL);
 	
 }
@@ -197,7 +198,7 @@ BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG
 			
 			
 			TCHAR szFullPath[MAX_PATH];
-			_stprintf_s(szFullPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, szFileName);
+			_sntprintf(szFullPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, szFileName);
 			
 			// Write file
 			HANDLE hFile = CreateFile(szFullPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -238,7 +239,7 @@ BOOL DropScriptToTemp(BYTE* pBatContent, DWORD dwContentLen, TCHAR* szOutPath) {
 	
 	TCHAR szRandom[5] = { 0 };
 	XBat_GenerateRandomString(szRandom, 5);
-	_stprintf_s(szOutPath, MAX_PATH, _T("%s\\%s.bat"), g_szSessionDropPath, szRandom);
+	_sntprintf(szOutPath, MAX_PATH, _T("%s\\%s.bat"), g_szSessionDropPath, szRandom);
 	
 	HANDLE hFile = CreateFile(szOutPath, GENERIC_WRITE, 0, NULL, 
 							  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -259,7 +260,7 @@ void RunBatAsFile_Legacy_Internal(TCHAR* lpszFilePath, BOOL bShow) {
 	si.wShowWindow = bShow ? SW_SHOW : SW_HIDE;
 	
 	TCHAR szCmdLine[MAX_PATH + 32];
-	_stprintf_s(szCmdLine, _countof(szCmdLine), _T("cmd.exe /c \"%s\""), lpszFilePath);
+	_sntprintf(szCmdLine, _countof(szCmdLine), _T("cmd.exe /c \"%s\""), lpszFilePath);
 	
 	DWORD dwFlags = bShow ? 0 : CREATE_NO_WINDOW;
 	if (CreateProcess(NULL, szCmdLine, NULL, NULL, FALSE, dwFlags, NULL, NULL, &si, &pi)) {
@@ -285,17 +286,30 @@ void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
 	if (g_Config.GlobalFlags & XBAT_FLAG_USE_PIPE) {
 		if (g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE){
 			// Note: Fatih-like mode
-
-			DropScriptToTemp(pBatContent, dwContentLen, szFilePath);
+			if (!DropScriptToTemp(pBatContent, dwContentLen, szFilePath)){
+				DWORD dwErrCode = GetLastError();
+				TCHAR szBuf[256];
+				wsprintf(szBuf, _T("Failed to drop script, error code: %d (0x%08X)"), dwErrCode, dwErrCode);
+				MessageBox(NULL,szBuf,_T("Error"),MB_ICONERROR);
+				return;
+			}
 #ifdef UNICODE
 			pszFilePathA = WCharToAnsi(szFilePath);
-			RunBatPipe(NULL, 0, bShowConsole, pszFilePathA);
+			BOOL bRet = RunBatPipe(NULL, 0, bShowConsole, pszFilePathA);
+			if (!bRet) {
+				DWORD dwErrCode = GetLastError();
+				TCHAR szBuf[256];
+				wsprintf(szBuf, _T("Failed to run script in file-pipe mode, error code: %d (0x%08X)"), dwErrCode, dwErrCode);
+				MessageBox(NULL,szBuf,_T("Error"),MB_ICONERROR);
+				free(pszFilePathA);
+				return;
+			}
 			free(pszFilePathA);
 #else
 			RunBatPipe(NULL, 0, bShowConsole, szFilePath);
 #endif
 		} else {
-			// TODO: Full pipe mode
+			// Full pipe mode
 			RunBatPipe((LPCSTR)pBatContent, dwContentLen, bShowConsole, NULL);
 		}
 		
@@ -357,7 +371,7 @@ void StubProcess(){
 			if (pLastSlash) *pLastSlash = _T('\0');
 			// Build inject text
 			TCHAR szInjectHeader[MAX_PATH * 3];
-			_stprintf_s(szInjectHeader, _countof(szInjectHeader), _T("@set \"RESDIR=%s\"\n@set \"EXEPATH=%s\"\n"), g_szSessionResPath, szExePath);
+			_sntprintf(szInjectHeader, _countof(szInjectHeader), _T("@set \"RESDIR=%s\"\n@set \"EXEPATH=%s\"\n"), g_szSessionResPath, szExePath);
 			
 #ifdef UNICODE
 			// Convert wide header in UNICODE to ANSI for script
@@ -403,7 +417,7 @@ void StubDestroy(){
 		TCHAR szDelPath[MAX_PATH + 1];
 		ZeroMemory(szDelPath, sizeof(szDelPath));
 		
-		_tcscpy_s(szDelPath, MAX_PATH, g_szSessionDropPath);
+		_tcscpy(szDelPath, g_szSessionDropPath);
 		
 		shfo.pFrom = szDelPath;
 		shfo.wFunc = FO_DELETE;
@@ -438,7 +452,7 @@ void InitSessionDropPath(){
 	
 	TCHAR szRandom[5] = {0};
 	XBat_GenerateRandomString(szRandom, 5);
-	_stprintf_s(g_szSessionDropPath, MAX_PATH, _T("%s\\XBAT.%s"), szTempPath, szRandom);
+	_sntprintf(g_szSessionDropPath, MAX_PATH, _T("%s\\XBAT.%s"), szTempPath, szRandom);
 	
 	// Create dir
 	CreateDirectory(g_szSessionDropPath, NULL);
@@ -465,5 +479,4 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	
 	return 0;
 }
-
 

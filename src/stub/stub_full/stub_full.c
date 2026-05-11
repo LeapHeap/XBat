@@ -84,10 +84,10 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 	char cmdLine[MAX_PATH + 64];
 	if (pBatPath) {
 		// Fatih-like mode
-		sprintf_s(cmdLine, sizeof(cmdLine), "cmd.exe /Q /D /C \"\"%s\"\"", pBatPath);
+		sprintf(cmdLine, "cmd.exe /Q /D /C \"\"%s\"\"", pBatPath);
 	} else {
 		// Memory mode
-		strcpy_s(cmdLine, sizeof(cmdLine), "cmd.exe /Q /D /K \"@echo off\"");
+		strcpy(cmdLine, "cmd.exe /Q /D /K \"@echo off\"");
 	}
 	
 	STARTUPINFOA si = { sizeof(si) };
