@@ -3,6 +3,15 @@
 
 #include <windows.h>
 
+#if !defined(MODE_VC6) && !defined(MODE_FULL) && !defined(BUILDING_LITE)
+// For editor preview
+#define MODE_FULL
+#ifndef UNICODE
+#define UNICODE
+#define _UNICODE
+#endif
+#endif
+
 #ifdef MODE_FULL
 
 #ifdef __cplusplus

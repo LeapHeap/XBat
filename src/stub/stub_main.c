@@ -72,18 +72,18 @@ static void ShowErrorMessage(LPCTSTR lpszMsg) {
 	MessageBox(NULL, szBuf, _T("Stub Error"), MB_ICONERROR);
 }
 
-BOOL DirectoryExists(LPCTSTR szPath)
+BOOL DirectoryExists(LPCTSTR lpszPath)
 {
-	DWORD dwAttrib = GetFileAttributes(szPath);
+	DWORD dwAttrib = GetFileAttributes(lpszPath);
 	return (dwAttrib != INVALID_FILE_ATTRIBUTES && 
 			(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-void SetDefaultConfig(XBAT_CONFIG* Cfg){
-	Cfg->Magic = *(UINT*)XBatMagic;
-	Cfg->GlobalFlags = 0;
-	Cfg->DropDirType = XBAT_DROP_DIR_TEMP;
-	strcpy(Cfg->szConsoleTitle, "XBat Executor Console");
+void SetDefaultConfig(XBAT_CONFIG* pCfg){
+	pCfg->Magic = *(UINT*)XBatMagic;
+	pCfg->GlobalFlags = 0;
+	pCfg->DropDirType = XBAT_DROP_DIR_TEMP;
+	strcpy(pCfg->szConsoleTitle, "XBat Executor Console");
 }
 
 void InitGlobalConfig(HMODULE hMod){
@@ -102,19 +102,19 @@ void InitGlobalConfig(HMODULE hMod){
 
 
 // Free pContent manually is required if succeed
-BYTE* XBat_ExtractResource(const LPVOID pData, DWORD dwSize, const BYTE* pKey, int keyLength, DWORD* pOutLen, TCHAR* pszOutFileName, DWORD* pdwOutAttrib){
-	if (!pData || !pKey) return NULL;
-	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)pData;
+LPBYTE XBat_ExtractResource(const LPVOID lpData, DWORD dwSize, const LPBYTE lpKey, int keyLength, LPDWORD lpOutLen, LPTSTR lpszOutFileName, LPDWORD lpdwOutAttrib){
+	if (!lpData || !lpKey) return NULL;
+	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)lpData;
 	UINT Magic = pHeader->Magic;
 	if (Magic != *(UINT*)XBatMagic) return NULL;
 	
-	if (pszOutFileName){
-		_tcsncpy(pszOutFileName, pHeader->szFileName, XBAT_RES_FILE_NAME_LENGTH - 1);
-		pszOutFileName[XBAT_RES_FILE_NAME_LENGTH - 1] = _T('\0');
+	if (lpszOutFileName){
+		_tcsncpy(lpszOutFileName, pHeader->szFileName, SAFE_LEN(XBAT_RES_FILE_NAME_LENGTH));
+		SET_STOPPER(lpszOutFileName, XBAT_RES_FILE_NAME_LENGTH);
 	}
 	
-	if (pdwOutAttrib) {
-		*pdwOutAttrib = pHeader->dwAttributes;
+	if (lpdwOutAttrib) {
+		*lpdwOutAttrib = pHeader->dwAttributes;
 	}
 	
 	
@@ -127,7 +127,7 @@ BYTE* XBat_ExtractResource(const LPVOID pData, DWORD dwSize, const BYTE* pKey, i
 	
 	memcpy(pContent,pHeader->Data,dwRawSize);
 	RC4_CTX ctx;
-	RC4_Init(&ctx,pKey,keyLength);
+	RC4_Init(&ctx,lpKey,keyLength);
 	RC4_Process(&ctx,pContent,dwRawSize);
 	
 	if (CalculateCRC32(pContent,dwRawSize) != SavedCrc){
@@ -136,23 +136,23 @@ BYTE* XBat_ExtractResource(const LPVOID pData, DWORD dwSize, const BYTE* pKey, i
 		
 	}
 	
-	if (pOutLen) *pOutLen = dwRawSize;
+	if (lpOutLen) *lpOutLen = dwRawSize;
 	return pContent;
 	
 }
 
 // This is resource extractor with decompression function, 
 #ifdef MODE_FULL
-BYTE* XBat_ExtractResourceEx(const LPVOID pData, DWORD dwSize, const BYTE* pKey, int keyLength, DWORD* pOutLen, TCHAR* pszOutFileName, DWORD* pdwOutAttrib) {
-	if (!pData || !pKey) return NULL;
-	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)pData;
+LPBYTE XBat_ExtractResourceEx(const LPVOID lpData, DWORD dwSize, const LPBYTE lpKey, int keyLength, LPDWORD lpOutLen, LPTSTR lpszOutFileName, LPDWORD lpdwOutAttrib) {
+	if (!lpData || !lpKey) return NULL;
+	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)lpData;
 	if (pHeader->Magic != *(UINT*)XBatMagic) return NULL;
 	
-	if (pszOutFileName){
-		_tcsncpy(pszOutFileName, pHeader->szFileName, XBAT_RES_FILE_NAME_LENGTH - 1);
-		pszOutFileName[XBAT_RES_FILE_NAME_LENGTH - 1] = _T('\0');
+	if (lpszOutFileName){
+		_tcsncpy(lpszOutFileName, pHeader->szFileName, XBAT_RES_FILE_NAME_LENGTH - 1);
+		lpszOutFileName[XBAT_RES_FILE_NAME_LENGTH - 1] = _T('\0');
 	}
-	if (pdwOutAttrib) *pdwOutAttrib = pHeader->dwAttributes;
+	if (lpdwOutAttrib) *lpdwOutAttrib = pHeader->dwAttributes;
 	
 	UINT SavedCrc = pHeader->SavedCrc;
 	DWORD dwFinalSize = pHeader->dwOriginalSize;
@@ -166,7 +166,7 @@ BYTE* XBat_ExtractResourceEx(const LPVOID pData, DWORD dwSize, const BYTE* pKey,
 	
 	memcpy(pCompressed, pHeader->Data, dwCompressedSize);
 	RC4_CTX ctx;
-	RC4_Init(&ctx, pKey, keyLength);
+	RC4_Init(&ctx, lpKey, keyLength);
 	RC4_Process(&ctx, pCompressed, dwCompressedSize);
 	
 	if (CalculateCRC32(pCompressed, dwCompressedSize) != SavedCrc) {
@@ -178,7 +178,7 @@ BYTE* XBat_ExtractResourceEx(const LPVOID pData, DWORD dwSize, const BYTE* pKey,
 	
 	free(pCompressed);
 	
-	if (pFinal && pOutLen) *pOutLen = dwFinalSize;
+	if (pFinal && lpOutLen) *lpOutLen = dwFinalSize;
 	return pFinal;
 }
 #endif
@@ -246,8 +246,8 @@ BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG
 }
 
 
-BOOL DropScriptToTemp(BYTE* pBatContent, DWORD dwContentLen, LPTSTR lpszOutPath) {
-	if (pBatContent == NULL || dwContentLen == 0 || lpszOutPath == NULL) return FALSE;
+BOOL DropScriptToTemp(LPBYTE lpBatContent, DWORD dwContentLen, LPTSTR lpszOutPath) {
+	if (lpBatContent == NULL || dwContentLen == 0 || lpszOutPath == NULL) return FALSE;
 	
 	if (!CreateDirectory(g_szSessionDropPath, NULL)) {
 		if (GetLastError() != ERROR_ALREADY_EXISTS) return FALSE;
@@ -266,13 +266,13 @@ BOOL DropScriptToTemp(BYTE* pBatContent, DWORD dwContentLen, LPTSTR lpszOutPath)
 	g_szSessionScriptPath[MAX_PATH - 1] = _T('\0');
 	
 	DWORD dwWritten = 0;
-	BOOL bRet = WriteFile(hFile, pBatContent, dwContentLen, &dwWritten, NULL);
+	BOOL bRet = WriteFile(hFile, lpBatContent, dwContentLen, &dwWritten, NULL);
 	CloseHandle(hFile);
 	
 	return bRet && (dwWritten == dwContentLen);
 }
 
-void RunBatAsFile_Legacy_Internal(TCHAR* lpszFilePath, BOOL bShow) {
+void RunBatAsFile_Legacy_Internal(LPTSTR lpszFilePath, BOOL bShow) {
 	STARTUPINFO si = { sizeof(si) };
 	PROCESS_INFORMATION pi = { 0 };
 	
@@ -292,7 +292,7 @@ void RunBatAsFile_Legacy_Internal(TCHAR* lpszFilePath, BOOL bShow) {
 	}
 }
 
-void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
+void ExecBat(LPBYTE lpBatContent, DWORD dwContentLen){
 //	TCHAR szDbg[128];
 //	wsprintf(szDbg, _T("Flags: 0x%08X, Pipe: %d, Full: %d"), 
 //			 g_Config.GlobalFlags, 
@@ -327,7 +327,7 @@ void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
 	if (bUsePipe) {
 		if (bRunAsFile) {
 			// Fatih mode
-			if (!DropScriptToTemp(pBatContent, dwContentLen, szFilePath)) {
+			if (!DropScriptToTemp(lpBatContent, dwContentLen, szFilePath)) {
 				ShowErrorMessage(_T("DropScript(Pipe) Failed"));
 				return;
 			}
@@ -340,7 +340,7 @@ void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
 #endif
 		} else {
 			// Full pipe mode
-			RunBatPipe((LPCSTR)pBatContent, dwContentLen, bShowConsole, NULL);
+			RunBatPipe((LPCSTR)lpBatContent, dwContentLen, bShowConsole, NULL);
 		}
 		return; // Exite after pipe mode
 	}
@@ -348,7 +348,7 @@ void ExecBat(BYTE* pBatContent, DWORD dwContentLen){
 	
 	// Legacy mode
 	// Fallback for lite mode and pipe not closed
-	if (DropScriptToTemp(pBatContent, dwContentLen, szFilePath)) {
+	if (DropScriptToTemp(lpBatContent, dwContentLen, szFilePath)) {
 		RunBatAsFile_Legacy_Internal(szFilePath, bShowConsole);
 	} else {
 		ShowErrorMessage(_T("DropScript(Legacy) Failed"));

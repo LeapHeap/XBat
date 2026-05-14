@@ -190,7 +190,7 @@ int main(int argc, char* argv[]) {
 	cfg.Magic = XBAT_MAGIC_INT;
 	cfg.GlobalFlags = XBAT_FLAG_USE_PIPE | XBAT_FLAG_LZMA_COMPRESSED | XBAT_FLAG_DESTROY_RESOURCES | XBAT_FLAG_SELF_DESTROY;
 	cfg.GlobalFlags |= XBAT_FLAG_SHOW_CONSOLE;
-	//cfg.GlobalFlags |= XBAT_FLAG_RUN_BAT_AS_FILE;
+	cfg.GlobalFlags |= XBAT_FLAG_RUN_BAT_AS_FILE;
 	cfg.GlobalFlags |= XBAT_FLAG_HAS_USER_RESOURCES;
 	cfg.DropDirType = XBAT_DROP_DIR_TEMP;
 	strcpy_s(cfg.szConsoleTitle, XBAT_CONSOLE_TITLE_LENGTH, "Test Stub");

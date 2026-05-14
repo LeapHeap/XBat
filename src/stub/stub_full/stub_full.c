@@ -65,13 +65,13 @@ unsigned CALLBACK OutputReaderThread(LPVOID lpParam){
 	return 0;
 }
 
-BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBatPath) {
+BOOL RunBatPipe(LPCSTR lpBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR lpszBatPath) {
 	HANDLE hInRead, hInWrite, hOutRead, hOutWrite;
 	SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
 	
-	if (pBatContent && dwSize == 0) return FALSE;
+	if (lpBatContent && dwSize == 0) return FALSE;
 	
-	if (!pBatPath && pBatContent){
+	if (!lpszBatPath && lpBatContent){
 		if (!CreatePipe(&hInRead, &hInWrite, &sa, 0)) return FALSE;
 		if (!CreatePipe(&hOutRead, &hOutWrite, &sa, 0)) {
 			CloseHandle(hInRead); CloseHandle(hInWrite);
@@ -83,9 +83,9 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 	
 	char cmdLine[MAX_PATH + 128];
 	ZeroMemory(cmdLine, sizeof(cmdLine));
-	if (pBatPath) {
+	if (lpszBatPath) {
 		// Fatih-like mode
-		_snprintf(cmdLine, SAFE_LEN(sizeof(cmdLine)), "cmd.exe /Q /D /C \"\"%s\"\"", pBatPath);
+		_snprintf(cmdLine, SAFE_LEN(sizeof(cmdLine)), "cmd.exe /Q /D /C \"\"%s\"\"", lpszBatPath);
 		SET_STOPPER(cmdLine, sizeof(cmdLine));
 	} else {
 		// Memory mode
@@ -97,7 +97,7 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 	PROCESS_INFORMATION pi = { 0 };
 	si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
 	si.wShowWindow = bShowConsole ? SW_SHOW : SW_HIDE;
-	if (pBatPath) {
+	if (lpszBatPath) {
 		// Fatih mode: inherit stdin handle of parent process
 		si.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
 		si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -116,7 +116,7 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 	
 	if (!CreateProcessA(NULL, cmdLine, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
 		// Clean
-		if (!pBatPath) {
+		if (!lpszBatPath) {
 			CloseHandle(hInRead); CloseHandle(hInWrite);
 			CloseHandle(hOutRead); CloseHandle(hOutWrite);
 		}
@@ -124,7 +124,7 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 	}
 	
 	
-	if (!pBatPath) {
+	if (!lpszBatPath) {
 		CloseHandle(hInRead);
 		CloseHandle(hOutWrite);
 		
@@ -136,8 +136,8 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 		}
 		
 		DWORD dwWritten;
-		WriteFile(hInWrite, "\n", 1, &dwWritten, NULL);
-		WriteFile(hInWrite, pBatContent, dwSize, &dwWritten, NULL);
+		WriteFile(hInWrite, "\n", 1, &dwWritten, NULL);		
+		WriteFile(hInWrite, lpBatContent, dwSize, &dwWritten, NULL);
 		WriteFile(hInWrite, "\nexit\n", 6, &dwWritten, NULL);
 		
 		CloseHandle(hInWrite);
@@ -148,10 +148,10 @@ BOOL RunBatPipe(LPCSTR pBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR pBat
 		WaitForSingleObject(pi.hProcess, INFINITE);
 	}
 	
-	if (!pBatPath) {
+	if (!lpszBatPath) {
 		CloseHandle(hOutRead);
 	}
-
+	
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
 	
