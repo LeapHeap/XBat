@@ -42,6 +42,9 @@
     <ClCompile Include="..\common\Utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="restool.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\crypto.h">
@@ -51,6 +54,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\common\Utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="restool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,0 +1,36 @@
+32 ICON "dummy.ico"
+
+LANGUAGE 0, 0
+
+1 VERSIONINFO
+    FILEVERSION     0,0,0,0
+    PRODUCTVERSION  0,0,0,0
+    FILEOS          0
+    FILETYPE        1
+    FILESUBTYPE     0
+    FILEFLAGSMASK   0
+    FILEFLAGS       0
+{
+    BLOCK "StringFileInfo"
+    {
+        BLOCK "04000025"
+        {
+            VALUE "Comments", ""
+            VALUE "CompanyName", ""
+            VALUE "FileDescription", ""
+            VALUE "FileVersion", "0.0.0.0"
+            VALUE "InternalName", ""
+            VALUE "LegalCopyright", ""
+            VALUE "LegalTrademarks", ""
+            VALUE "OriginalFilename", ""
+            VALUE "PrivateBuild", ""
+            VALUE "ProductName", ""
+            VALUE "ProductVersion", "0.0.0.0"
+            VALUE "SpecialBuild", ""
+        }
+    }
+    BLOCK "VarFileInfo"
+    {
+        VALUE "Translation", 0x0400, 0x0025 
+    }
+}

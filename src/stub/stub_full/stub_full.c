@@ -124,7 +124,7 @@ BOOL RunBatPipe(LPCSTR lpBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR lps
 	}
 	
 	
-	if (!lpszBatPath) {
+	if (!lpszBatPath && lpBatContent) {
 		CloseHandle(hInRead);
 		CloseHandle(hOutWrite);
 		

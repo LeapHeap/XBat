@@ -2,6 +2,7 @@
 #define SHARED_DEFS_H
 
 #include <windows.h>
+#include <tchar.h>
 
 #define XBAT_MAGIC_DATA {0x58,0x42,0x41,0x54} // "XBAT"
 #define XBAT_MAGIC_INT 0x54414258
@@ -14,6 +15,12 @@
 #define XBAT_FLAG_SELF_DESTROY			(1 << 5) // Only for debugging use, should be enabled by default
 #define XBAT_FLAG_DESTROY_RESOURCES		(1 << 6) // Destroy resource at exit. Does NOT work if XBAT_FLAG_SELF_DESTROY not enabled.
 
+typedef enum {
+	MODE_FATIH = 0,
+	MODE_MEMORY,
+	MODE_LITE
+} XBAT_MODE;
+
 #define XBAT_DROP_DIR_TEMP		0
 #define XBAT_DROP_DIR_CURR		1
 
@@ -25,6 +32,7 @@
 #define IDR_XBAT_KEY 998
 #define IDR_XBAT_BAT 500
 #define IDR_XBAT_CONFIG 999
+#define IDI_XBAT 2
 
 
 #define XBAT_KEY_OBFUSCATOR 0xA5
@@ -49,5 +57,31 @@ typedef struct {
 } XBAT_CONFIG;
 #pragma pack(pop)
 
+
+#ifdef UNICODE
+#define CHAR2TCHAR(dest, src, len) MultiByteToWideChar(CP_ACP, 0, (src), -1, (dest), (len))
+#else
+#define CHAR2TCHAR(dest, src, len) strcpy_s((dest), (len), (src))
+#endif
+
+#define XBAT_STUB_ARCH_X86 0
+#define XBAT_STUB_ARCH_X64 1
+
+typedef struct {
+	TCHAR szComments[128];
+	TCHAR szCompanyName[128];
+	TCHAR szFileDescription[128];
+	TCHAR szFileVersion[128];
+	TCHAR szInternalName[128];
+	TCHAR szLegalCopyright[128];
+	TCHAR szLegalTrademarks[128];
+	TCHAR szOriginalFilename[128];
+	TCHAR szPrivateBuild[128];
+	TCHAR szProductName[128];
+	TCHAR szProductVersion[128];
+	TCHAR szSpecialBuild[128];
+} STUB_VERSION_INFO;
+
+#define STDIN_BUF_SIZE 4096
 
 #endif
