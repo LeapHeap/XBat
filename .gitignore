@@ -12,6 +12,7 @@ makefile.win
 _script*
 test*.*
 Release/
+_test/
 .vs/
 *.pdb
 *.obj

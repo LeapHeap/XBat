@@ -353,13 +353,34 @@ static void ConverterProcess(CONVERTER_LIST* lpList) {
 	// Free original script buffer anyway
 	if (pScriptBuffer) free(pScriptBuffer);
 
+	// Walk and add user resources
 	int nCurrentId = IDR_XBAT_USER_RES_START;
 	for (size_t i = 0; i < lpList->vecResList.size(); i++) {
 		DWORD dwResLen = 0;
 		BYTE* pRes = LoadFileToBuffer(lpList->vecResList[i].szFilePath, &(lpList->vecResList[i].dwFileSize));
 
 		if (pRes && nCurrentId <= IDR_XBAT_USER_RES_END) {
-			PackAndInjectResourceEx(hUpdate, nCurrentId, pRes, lpList->vecResList[i].dwFileSize, rawKey, lpList->vecResList[i].szFilePath, lpList->vecResList[i].dwFileAttribute, bEnableLzma);
+			// Get the pointer and length of current full path
+			const TCHAR* pszFullPath = lpList->vecResList[i].szFilePath;
+			int p = (int)_tcslen(pszFullPath);
+
+			// Extract pure file name
+			while (p > 0 && pszFullPath[p - 1] != _T('\\') && pszFullPath[p - 1] != _T('/')) {
+				p--;
+			}
+			const TCHAR* pszPureFileName = pszFullPath + p;
+
+			// Inject current resource
+			PackAndInjectResourceEx(
+				hUpdate,
+				nCurrentId,
+				pRes,
+				lpList->vecResList[i].dwFileSize,
+				rawKey,
+				pszPureFileName,
+				lpList->vecResList[i].dwFileAttribute,
+				bEnableLzma
+			);
 		}
 		nCurrentId++;
 		if (pRes) free(pRes);
