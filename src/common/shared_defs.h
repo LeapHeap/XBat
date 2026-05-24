@@ -32,6 +32,8 @@ typedef enum {
 #define IDR_XBAT_KEY 998
 #define IDR_XBAT_BAT 500
 #define IDR_XBAT_CONFIG 999
+#define IDR_XBAT_USER_RES_START IDR_XBAT_BAT + 1
+#define IDR_XBAT_USER_RES_END   IDR_XBAT_CONFIG - 99
 #define IDI_XBAT 2
 
 
@@ -57,11 +59,13 @@ typedef struct {
 } XBAT_CONFIG;
 #pragma pack(pop)
 
-
+// String conversion macro
 #ifdef UNICODE
 #define CHAR2TCHAR(dest, src, len) MultiByteToWideChar(CP_ACP, 0, (src), -1, (dest), (len))
+#define TCHAR2CHAR(dest, src, len) WideCharToMultiByte(CP_ACP, 0, (src), -1, (dest), (len), NULL, NULL)
 #else
 #define CHAR2TCHAR(dest, src, len) strcpy_s((dest), (len), (src))
+#define TCHAR2CHAR(dest, src, len) strcpy_s((dest), (len), (src))
 #endif
 
 #define XBAT_STUB_ARCH_X86 0

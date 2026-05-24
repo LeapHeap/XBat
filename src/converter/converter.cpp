@@ -47,23 +47,6 @@ extern "C" {
 
 #define CheckArgPattern(pattern) IsArgEqual(lpszArg, pattern)
 
-TCHAR g_szGoRCPath[MAX_PATH];
-
-
-bool IsArgEqual(const char* lpszArg, const char* lpszPattern) {
-	if (!lpszArg || !lpszPattern) return false;
-	while (*lpszArg && *lpszPattern) {
-		char c1 = *lpszArg;
-		char c2 = *lpszPattern;
-		if (c1 >= 'A' && c1 <= 'Z') c1 += 32;
-		if (c2 >= 'A' && c2 <= 'Z') c2 += 32;
-		if (c1 != c2) return false;
-		lpszArg++;
-		lpszPattern++;
-	}
-	return *lpszArg == *lpszPattern;
-}
-
 typedef struct {
 	CHAR szSrcBatPath[MAX_PATH];
 	CHAR szTargetExePath[MAX_PATH];
@@ -95,6 +78,112 @@ typedef struct {
 	TCHAR szStubPath[MAX_PATH];
 	TCHAR szOutputPath[MAX_PATH];
 } CONVERTER_LIST;
+
+static BOOL Win32_CombineFilesBinary(const TCHAR* pszDstPath, const TCHAR* papszSrcPaths[], int nSrcCount) {
+	if (!pszDstPath || !papszSrcPaths || nSrcCount <= 0) return FALSE;
+
+	FILE* fpDst = NULL;
+	if (_tfopen_s(&fpDst, pszDstPath, _T("wb")) != 0 || !fpDst) {
+		return FALSE;
+	}
+
+	const size_t BUFFER_SIZE = 4096;
+	BYTE* pBuffer = (BYTE*)malloc(BUFFER_SIZE);
+	if (!pBuffer) {
+		fclose(fpDst);
+		return FALSE;
+	}
+
+	BOOL bSuccess = TRUE;
+
+	for (int i = 0; i < nSrcCount; ++i) {
+		if (!papszSrcPaths[i]) {
+			bSuccess = FALSE;
+			break;
+		}
+
+		FILE* fpSrc = NULL;
+		if (_tfopen_s(&fpSrc, papszSrcPaths[i], _T("rb")) != 0 || !fpSrc) {
+			bSuccess = FALSE;
+			break;
+		}
+
+		size_t bytesRead = 0;
+		while ((bytesRead = fread(pBuffer, 1, BUFFER_SIZE, fpSrc)) > 0) {
+			size_t bytesWritten = fwrite(pBuffer, 1, bytesRead, fpDst);
+			if (bytesWritten != bytesRead) {
+				bSuccess = FALSE;
+				break;
+			}
+		}
+
+		fclose(fpSrc);
+		if (!bSuccess) break;
+	}
+
+	free(pBuffer);
+	fclose(fpDst);
+
+	if (!bSuccess) {
+		DeleteFile(pszDstPath);
+	}
+
+	return bSuccess;
+}
+
+bool IsArgEqual(const char* lpszArg, const char* lpszPattern) {
+	if (!lpszArg || !lpszPattern) return false;
+	while (*lpszArg && *lpszPattern) {
+		char c1 = *lpszArg;
+		char c2 = *lpszPattern;
+		if (c1 >= 'A' && c1 <= 'Z') c1 += 32;
+		if (c2 >= 'A' && c2 <= 'Z') c2 += 32;
+		if (c1 != c2) return false;
+		lpszArg++;
+		lpszPattern++;
+	}
+	return *lpszArg == *lpszPattern;
+}
+
+BOOL DirectoryExists(LPCTSTR lpszPath)
+{
+	DWORD dwAttrib = GetFileAttributes(lpszPath);
+	return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
+		(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+TCHAR g_szTempWorkDirPath[MAX_PATH];
+TCHAR g_szExtractorExePath[MAX_PATH];
+TCHAR g_szConverterExePath[MAX_PATH] = { 0 };
+TCHAR g_szConverterDirPath[MAX_PATH] = { 0 };
+
+BOOL InitTempWorkDir() {
+	srand((unsigned int)time(NULL));
+	TCHAR szTempPath[MAX_PATH];
+	if (GetTempPath(MAX_PATH, szTempPath) == 0) {
+		// Use current dir if failed
+		GetCurrentDirectory(MAX_PATH, szTempPath);
+	}
+	TCHAR szRandom[5] = { 0 };
+	XBat_GenerateRandomString(szRandom, 5);
+	_stprintf_s(g_szTempWorkDirPath, MAX_PATH, _T("%s\\XC.%s"), szTempPath, szRandom);
+
+	return CreateDirectory(g_szTempWorkDirPath, NULL);
+}
+
+int DestroyTempWorkDir() {
+	if (!DirectoryExists(g_szTempWorkDirPath)) return FALSE;
+
+	SHFILEOPSTRUCT shfo;
+	ZeroMemory(&shfo, sizeof(shfo));
+
+	shfo.pFrom = g_szTempWorkDirPath;
+	shfo.wFunc = FO_DELETE;
+	// FOF_NOERRORUI:
+	shfo.fFlags = FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI;
+
+	return SHFileOperation(&shfo);
+}
 
 static void* SzAlloc(ISzAllocPtr p, size_t size) { return malloc(size); }
 static void SzFree(ISzAllocPtr p, void* address) { free(address); }
@@ -225,15 +314,51 @@ static void ConverterProcess(CONVERTER_LIST* lpList) {
 	UpdateResource(hUpdate, RT_RCDATA, MAKEINTRESOURCE(IDR_XBAT_CONFIG), MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), lpList->lpConfig, sizeof(*(lpList->lpConfig)));
 	UpdateResource(hUpdate, RT_RCDATA, MAKEINTRESOURCE(IDR_XBAT_KEY),
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), obfuscatedKey, 16);
-	PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pScriptBuffer, dwScriptLen, rawKey, NULL, 0, bEnableLzma);
+
+	// TODO: Inject sfx starter if there is one
+	if (PathFileExists(g_szExtractorExePath)) {
+		// Assume that script is ANSI and CRLF
+
+		CHAR szInjectionA[256];
+		CHAR szExeNameA[MAX_PATH];
+
+		// Get extractor file name
+		int pos = _tcslen(g_szExtractorExePath);
+		while (pos > 0 && g_szExtractorExePath[pos - 1] != _T('\\')) pos--;
+		TCHAR* pszExtractorExeName = g_szExtractorExePath + pos;
+
+		// Convert TCHAR extractor file name to ANSI
+		TCHAR2CHAR(szExeNameA, pszExtractorExeName, MAX_PATH);
+		sprintf_s(szInjectionA, sizeof(szInjectionA),
+			"start /wait \"\" \"%%RESDIR%%\\%s\"\r\n"
+			"del /f /q /a:h \"%%RESDIR%%\\%s\"\r\n",
+			szExeNameA, szExeNameA);
+
+		DWORD dwInjectBytes = (DWORD)strlen(szInjectionA);
+		DWORD dwFinalLen = dwInjectBytes + dwScriptLen;
+
+		BYTE* pFinalScriptBuffer = (BYTE*)malloc(dwFinalLen);
+		if (pFinalScriptBuffer) {
+			memcpy(pFinalScriptBuffer, szInjectionA, dwInjectBytes);
+			memcpy(pFinalScriptBuffer + dwInjectBytes, pScriptBuffer, dwScriptLen);
+
+			PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pFinalScriptBuffer, dwFinalLen, rawKey, NULL, 0, bEnableLzma);
+			free(pFinalScriptBuffer);
+		}
+	}
+	else {
+		// Original
+		PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pScriptBuffer, dwScriptLen, rawKey, NULL, 0, bEnableLzma);
+	}
+	// Free original script buffer anyway
 	if (pScriptBuffer) free(pScriptBuffer);
 
-	int nCurrentId = 501;
+	int nCurrentId = IDR_XBAT_USER_RES_START;
 	for (size_t i = 0; i < lpList->vecResList.size(); i++) {
 		DWORD dwResLen = 0;
 		BYTE* pRes = LoadFileToBuffer(lpList->vecResList[i].szFilePath, &(lpList->vecResList[i].dwFileSize));
 
-		if (pRes && nCurrentId <= 900) {
+		if (pRes && nCurrentId <= IDR_XBAT_USER_RES_END) {
 			PackAndInjectResourceEx(hUpdate, nCurrentId, pRes, lpList->vecResList[i].dwFileSize, rawKey, lpList->vecResList[i].szFilePath, lpList->vecResList[i].dwFileAttribute, bEnableLzma);
 		}
 		nCurrentId++;
@@ -244,39 +369,42 @@ static void ConverterProcess(CONVERTER_LIST* lpList) {
 
 	// Add icon and version info
 
-	STUB_VERSION_INFO svi = { 0 };
-	BOOL bHasVersionInfo = FALSE;
+	// TODO: Use rcedit as backend for this
 
-	if (lpList->szVerInfoPath[0] != _T('\0')) {
-		bHasVersionInfo = TRUE;
-		// Default values
-		WORD wYear = 2026;
-		SYSTEMTIME st = { 0 };
-		GetLocalTime(&st);
-		wYear = st.wYear;
-		_tcscpy_s(svi.szComments, 128, _T("Packed by XBat Converter."));
-		_tcscpy_s(svi.szCompanyName, 128, _T("XBat Project"));
-		_tcscpy_s(svi.szFileDescription, 128, _T("XBat Packed Executable Application"));
-		_tcscpy_s(svi.szFileVersion, 128, _T("1.0.0.0"));
-		_tcscpy_s(svi.szInternalName, 128, _T("XBatStub.exe"));
-		_stprintf_s(svi.szLegalCopyright, 128, _T("Copyright (C) %d. All rights reserved."), wYear);
-		_tcscpy_s(svi.szLegalTrademarks, 128, _T("XBat(TM)"));
-		_tcscpy_s(svi.szOriginalFilename, 128, _T("XBatOutput.exe"));
-		_tcscpy_s(svi.szPrivateBuild, 128, _T(""));
-		_tcscpy_s(svi.szProductName, 128, _T("XBat Generated Application"));
-		_tcscpy_s(svi.szProductVersion, 128, _T("1.0.0.0"));
-		_tcscpy_s(svi.szSpecialBuild, 128, _T(""));
+	//STUB_VERSION_INFO svi = { 0 };
+	//BOOL bHasVersionInfo = FALSE;
 
-		// TODO: Extract from ini and override
+	//if (lpList->szVerInfoPath[0] != _T('\0')) {
+	//	bHasVersionInfo = TRUE;
+	//	// Default values
+	//	WORD wYear = 2026;
+	//	SYSTEMTIME st = { 0 };
+	//	GetLocalTime(&st);
+	//	wYear = st.wYear;
+	//	_tcscpy_s(svi.szComments, 128, _T("Packed by XBat Converter."));
+	//	_tcscpy_s(svi.szCompanyName, 128, _T("XBat Project"));
+	//	_tcscpy_s(svi.szFileDescription, 128, _T("XBat Packed Executable Application"));
+	//	_tcscpy_s(svi.szFileVersion, 128, _T("1.0.0.0"));
+	//	_tcscpy_s(svi.szInternalName, 128, _T("XBatStub.exe"));
+	//	_stprintf_s(svi.szLegalCopyright, 128, _T("Copyright (C) %d. All rights reserved."), wYear);
+	//	_tcscpy_s(svi.szLegalTrademarks, 128, _T("XBat(TM)"));
+	//	_tcscpy_s(svi.szOriginalFilename, 128, _T("XBatOutput.exe"));
+	//	_tcscpy_s(svi.szPrivateBuild, 128, _T(""));
+	//	_tcscpy_s(svi.szProductName, 128, _T("XBat Generated Application"));
+	//	_tcscpy_s(svi.szProductVersion, 128, _T("1.0.0.0"));
+	//	_tcscpy_s(svi.szSpecialBuild, 128, _T(""));
 
-	}
+	//	// TODO: Extract from ini and override
 
-	TCHAR szResPath[MAX_PATH];
-	DWORD dwResPathLen = 0;
-	
-	if (!BuildResourceFile(lpList->szIconPath, &svi, szResPath, dwResPathLen, bHasVersionInfo)) return;
+	//}
 
-	InjectResIntoExe(lpList->szStubPath, szResPath);
+	//TCHAR szResPath[MAX_PATH];
+	//
+	//if (!BuildResourceFile(lpList->szIconPath, &svi, szResPath, MAX_PATH, bHasVersionInfo)) return;
+
+	//if (InjectResIntoExe(lpList->szOutputPath, szResPath)) {
+	//	DeleteFile(szResPath);
+	//}
 
 }
 
@@ -304,7 +432,6 @@ static BOOL ParseCmdLine(int argc, char* argv[], CONVERTER_OPTIONS* lpOpt) {
 
 		else if (IsArgEqual(lpszArg, "/include")) {
 			if (i + 1 < argc) {
-				//strncpy_s(lpOpt->szIncDirPath, argv[++i], _TRUNCATE);
 				lpOpt->vecIncPaths.push_back(argv[++i]);
 				lpOpt->bHasUserRes = TRUE;
 			}
@@ -365,23 +492,22 @@ static BOOL ParseCmdLine(int argc, char* argv[], CONVERTER_OPTIONS* lpOpt) {
 
 
 int main(int argc, char* argv[]) {
+	GetModuleFileName(NULL, g_szConverterExePath, MAX_PATH);
+	_tcscpy_s(g_szConverterDirPath, MAX_PATH, g_szConverterExePath);
+	PathRemoveFileSpec(g_szConverterDirPath);
+
+	InitTempWorkDir();
 	
 	CONVERTER_OPTIONS opt = { 0 };
-	XBAT_CONFIG cfg = { 0 };
+	static XBAT_CONFIG cfg = { 0 };
 	CONVERTER_LIST lst = { 0 };
 
 	if (!ParseCmdLine(argc, argv, &opt)) return FALSE;
 	
+	cfg.Magic = XBAT_MAGIC_INT;
 	// Default config values
 	cfg.GlobalFlags |= XBAT_FLAG_SELF_DESTROY;
 	cfg.DropDirType = XBAT_DROP_DIR_TEMP;
-
-	if (opt.szTargetExePath[0] == '\0') {
-		strcpy_s(opt.szTargetExePath, MAX_PATH, opt.szSrcBatPath);
-		if (!PathRenameExtensionA(opt.szTargetExePath, ".exe")) {
-			fprintf(stderr, "Error: Failed to change extension.\n");
-		}
-	}
 
 	if (opt.bShowConsole) cfg.GlobalFlags |= XBAT_FLAG_SHOW_CONSOLE;
 	switch (opt.eMode) {
@@ -406,41 +532,39 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "Error: Undefined drop directory type.\n");
 	}
 
-	// Parse user resources
-	if (opt.bHasUserRes) {
-		cfg.GlobalFlags |= XBAT_FLAG_HAS_USER_RESOURCES;
-		
-		for (size_t i = 0; i < opt.vecIncPaths.size(); ++i) {
-			const char* pszPath = opt.vecIncPaths[i].c_str();
-			DWORD dwAttr = GetFileAttributesA(pszPath);
-			if (dwAttr == INVALID_FILE_ATTRIBUTES) continue;
-			if (dwAttr & FILE_ATTRIBUTE_DIRECTORY) {
-				// TODO: use 7z-sfx to pack
-			}
-			else {
-				// Pack single file
-				XBAT_RESOURCE res = { 0 };
-				CHAR2TCHAR(res.szFilePath, opt.vecIncPaths[i].data(), MAX_PATH);
-				res.dwFileAttribute = GetFileAttributes(res.szFilePath);
-				lst.vecResList.push_back(res);
+	// Load up config struct
+	lst.lpConfig = &cfg;
 
-			}
+	// Populate paths
+	if (opt.szTargetExePath[0] == '\0') {
+		strcpy_s(opt.szTargetExePath, MAX_PATH, opt.szSrcBatPath);
+		if (!PathRenameExtensionA(opt.szTargetExePath, ".exe")) {
+			fprintf(stderr, "Error: Failed to change extension.\n");
 		}
+	}
+
+	if (opt.szSrcBatPath[0] != '\0') {
+		CHAR2TCHAR(lst.szScriptPath, opt.szSrcBatPath, MAX_PATH);
+	}
+
+	if (opt.szTargetExePath[0] != '\0') {
+		CHAR2TCHAR(lst.szOutputPath, opt.szTargetExePath, MAX_PATH);
+	}
+
+	if (opt.szIconPath[0] != '\0') {
+		CHAR2TCHAR(lst.szIconPath, opt.szIconPath, MAX_PATH);
 	}
 
 	if (opt.szVerInfoPath[0] != '\0') {
 		if (opt.szVerInfoPath[0] == '-') {
-			// TODO: Parse stdin and write to temp file
 			HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
 			if (hStdin == INVALID_HANDLE_VALUE) {
 				fprintf(stderr, "Error: Failed to obtain stdin.\n");
 				return FALSE;
 			}
 
-			TCHAR szTempPath[MAX_PATH];
 			TCHAR szTempFileName[MAX_PATH];
-			GetTempPath(MAX_PATH, szTempPath);
-			GetTempFileName(szTempPath, _T("XBat_Ver_"), 0, szTempFileName);
+			GetTempFileName(g_szTempWorkDirPath, _T("XBat_Ver_"), 0, szTempFileName);
 
 			HANDLE hTempFile = CreateFile(szTempFileName, GENERIC_WRITE, 0, NULL,
 				CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -459,32 +583,105 @@ int main(int argc, char* argv[]) {
 			CloseHandle(hTempFile);
 
 			_tcscpy_s(lst.szVerInfoPath, MAX_PATH, szTempFileName);
-
-			// 【注意】记得在 XBat 编译生成 EXE 功成身退的最后，
-			// 调用 DeleteFile(lst.szVerInfoPath) 擦除这个临时文件。
 		}
 		else {
 			// Copy path directly
 			CHAR2TCHAR(lst.szVerInfoPath, opt.szVerInfoPath, MAX_PATH);
 		}
 	}
-	
-	if (opt.szIconPath[0] != '\0') {
-		CHAR2TCHAR(lst.szIconPath, opt.szIconPath, MAX_PATH);
-	}
 
-	lst.lpConfig = &cfg;
+	// Parse user resources
+	std::vector<std::string> vecUserDirs;
 
-	if (opt.szSrcBatPath[0] != '\0') {
-		CHAR2TCHAR(lst.szScriptPath, opt.szSrcBatPath, MAX_PATH);
-	}
+	if (opt.bHasUserRes) {
+		cfg.GlobalFlags |= XBAT_FLAG_HAS_USER_RESOURCES;
+		
+		for (size_t i = 0; i < opt.vecIncPaths.size(); ++i) {
+			const char* pszPath = opt.vecIncPaths[i].c_str();
+			DWORD dwAttr = GetFileAttributesA(pszPath);
+			if (dwAttr == INVALID_FILE_ATTRIBUTES) continue;
+			if (dwAttr & FILE_ATTRIBUTE_DIRECTORY) {
+				vecUserDirs.push_back(opt.vecIncPaths[i]);
+			}
+			else {
+				// Pack single file
+				XBAT_RESOURCE res = { 0 };
+				CHAR2TCHAR(res.szFilePath, opt.vecIncPaths[i].data(), MAX_PATH);
+				res.dwFileAttribute = GetFileAttributes(res.szFilePath);
+				lst.vecResList.push_back(res);
+			}
+		}
 
-	if (opt.szTargetExePath[0] != '\0') {
-		CHAR2TCHAR(lst.szOutputPath, opt.szTargetExePath, MAX_PATH);
+		if (!vecUserDirs.empty()) {
+			TCHAR szTempArchivePath[MAX_PATH], szTempConfigPath[MAX_PATH], szExtractorExePath[MAX_PATH];
+
+			TCHAR sz7zPath[MAX_PATH];
+			_stprintf_s(sz7zPath, MAX_PATH, _T("%s\\tools\\7zr.exe"), g_szConverterDirPath);
+
+			_stprintf_s(szTempArchivePath, MAX_PATH, _T("%s\\dir_pack.7z"), g_szTempWorkDirPath);
+			_stprintf_s(g_szExtractorExePath, MAX_PATH, _T("%s\\dir_extractor.exe"), g_szTempWorkDirPath);
+			_tcscpy_s(szExtractorExePath, MAX_PATH, g_szExtractorExePath);
+			_stprintf_s(szTempConfigPath, MAX_PATH, _T("%s\\sfx_cfg.txt"), g_szTempWorkDirPath);
+			FILE* fp;
+			_tfopen_s(&fp, szTempConfigPath, _T("w, ccs=UTF-8"));
+			if (fp) {
+				_ftprintf(fp, _T(";!@Install@!UTF-8!\n"));
+				_ftprintf(fp, _T("Progress=\"Off\"\n"));
+				_ftprintf(fp, _T("Directory=\".\"\n"));
+				_ftprintf(fp, _T(";!@InstallEnd@!\n"));
+				fclose(fp);
+			}
+			
+			for (size_t d = 0; d < vecUserDirs.size(); ++d) {
+				STARTUPINFO si = { 0 };
+				PROCESS_INFORMATION pi = { 0 };
+				si.cb = sizeof(si);
+				static TCHAR szCmdLine[(MAX_PATH * 2) + 64];
+				TCHAR szCurrIncPathT[MAX_PATH];
+				CHAR2TCHAR(szCurrIncPathT, vecUserDirs[d].data(), MAX_PATH);
+				_stprintf_s(szCmdLine, _countof(szCmdLine), _T("\"%s\" a \"%s\" \"%s\""), sz7zPath ,szTempArchivePath, szCurrIncPathT);
+				if (!CreateProcess(
+					NULL,
+					szCmdLine,
+					NULL,
+					NULL,
+					FALSE,
+					CREATE_NO_WINDOW,
+					NULL,
+					NULL,
+					&si,
+					&pi))
+				{
+					continue;
+				}
+				WaitForSingleObject(pi.hProcess, INFINITE);
+				CloseHandle(pi.hThread);
+				CloseHandle(pi.hProcess);
+			}
+
+			// Make sfx extractor
+			TCHAR szSfxTemplatePath[MAX_PATH];
+			_stprintf_s(szSfxTemplatePath, MAX_PATH, _T("%s\\templates\\7zSD.sfx"), g_szConverterDirPath);
+
+			const TCHAR* arrSrcFiles[3] = {
+				szSfxTemplatePath,
+				szTempConfigPath,
+				szTempArchivePath
+			};
+
+			if (!Win32_CombineFilesBinary(szExtractorExePath, arrSrcFiles, 3)) {
+				fprintf(stderr, "Error: Failed to combine files into extractor binary.\n");
+			}
+
+			XBAT_RESOURCE dirRes = { 0 };
+			_tcscpy_s(dirRes.szFilePath, MAX_PATH, szExtractorExePath);
+			dirRes.dwFileAttribute = FILE_ATTRIBUTE_HIDDEN;
+			lst.vecResList.push_back(dirRes);
+		}
 	}
 
 	// Construct stub path
-	_tcscpy_s(lst.szStubPath, MAX_PATH, _T("templates\\"));
+	_stprintf_s(lst.szStubPath, MAX_PATH, _T("%s\\templates\\"), g_szConverterDirPath);
 	if (opt.bUseX64) {
 		_tcscat_s(lst.szStubPath, MAX_PATH, _T("x64\\"));
 	}
@@ -498,11 +695,8 @@ int main(int argc, char* argv[]) {
 		_tcscat_s(lst.szStubPath, MAX_PATH, _T("stub_full.bin"));
 	}
 
-	// Path fields
-	CHAR2TCHAR(lst.szScriptPath, opt.szSrcBatPath, MAX_PATH);
-	CHAR2TCHAR(lst.szOutputPath, opt.szTargetExePath, MAX_PATH);
-
 	ConverterProcess(&lst);
+	DestroyTempWorkDir();
 
 	return TRUE;
 }

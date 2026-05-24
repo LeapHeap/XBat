@@ -156,7 +156,6 @@ LPBYTE XBat_ExtractResourceEx(const LPVOID lpData, DWORD dwSize, const LPBYTE lp
 	
 	UINT SavedCrc = pHeader->SavedCrc;
 	DWORD dwFinalSize = pHeader->dwOriginalSize;
-	//DWORD dwCompressedSize = dwSize - (sizeof(XBAT_RES_HEADER) - 1); 
 	// Safer version
 	DWORD dwHeaderSize = (DWORD)((BYTE*)pHeader->Data - (BYTE*)pHeader);
 	DWORD dwCompressedSize = dwSize - dwHeaderSize;
@@ -401,7 +400,7 @@ void StubProcess(){
 			if (pLastSlash) *pLastSlash = _T('\0');
 			// Build inject text
 			TCHAR szInjectHeader[MAX_PATH * 3];
-			_sntprintf(szInjectHeader, SAFE_LEN( _countof(szInjectHeader) ), _T("@set \"RESDIR=%s\"\n@set \"EXEPATH=%s\"\n"), g_szSessionResPath, szExePath);
+			_sntprintf(szInjectHeader, SAFE_LEN( _countof(szInjectHeader) ), _T("@set \"RESDIR=%s\"\r\n@set \"EXEPATH=%s\"\r\n"), g_szSessionResPath, szExePath);
 			SET_STOPPER(szInjectHeader, _countof(szInjectHeader));
 			
 #ifdef UNICODE
@@ -425,17 +424,9 @@ void StubProcess(){
 #endif
 			free(pBatContent); // Free the og bat content memory
 			
-//			// g_szSessionDropPath backup
-//			TCHAR szSessionDropPath[MAX_PATH];
-//			memcpy(szSessionDropPath, g_szSessionDropPath, sizeof(szSessionDropPath));
-			
 			EnumResourceNames(hMod, RT_RCDATA, EnumResNamesFunc, 0);
-			
-//			// Recover g_szSessionDropPath
-//			memcpy(g_szSessionDropPath, szSessionDropPath, sizeof(g_szSessionDropPath));
 		} 
 		
-		//MessageBox(NULL, _T("About to enter ExecBat"), _T("msg"), MB_OK);
 		ExecBat(pFinalContent, dwFinalLen);
 		
 		if (pFinalContent) free(pFinalContent);
