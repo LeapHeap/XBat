@@ -724,11 +724,18 @@ int main(int argc, char* argv[]) {
 		_tcscat_s(lst.szStubPath, MAX_PATH, _T("x86\\"));
 	}
 	if (opt.eMode == MODE_LITE) {
-		_tcscat_s(lst.szStubPath, MAX_PATH, _T("stub_lite.bin"));
+		_tcscat_s(lst.szStubPath, MAX_PATH, _T("stub_lite"));
 	}
 	else {
-		_tcscat_s(lst.szStubPath, MAX_PATH, _T("stub_full.bin"));
+		_tcscat_s(lst.szStubPath, MAX_PATH, _T("stub_full"));
 	}
+	if (opt.bShowConsole) {
+		_tcscat_s(lst.szStubPath, MAX_PATH, _T("_cli"));
+	}
+	else {
+		_tcscat_s(lst.szStubPath, MAX_PATH, _T("_gui"));
+	}
+	_tcscat_s(lst.szStubPath, MAX_PATH, _T(".bin"));
 
 	ConverterProcess(&lst);
 	DestroyTempWorkDir();
