@@ -1,16 +1,8 @@
 #include "stub_full.h"
-#include <stdio.h>
-#include <stdlib.h>
 #include <windows.h>
-#include <tchar.h>
 #include "../../common/lzma_sdk/lzmadec/LzmaDec.h"
 
-#include <process.h>
-
-#include <conio.h>
-#include <io.h>
-#include <fcntl.h>
-
+#include "../../common/nocrt_patch.h"
 #include "../../common/vc6_patch.h"
 
 // LZMA sdk allocator
@@ -50,18 +42,29 @@ typedef struct{
 	BOOL bSilent;
 } THREAD_PARAMS;
 
-unsigned CALLBACK OutputReaderThread(LPVOID lpParam){
+DWORD WINAPI OutputReaderThread(LPVOID lpParam)
+{
 	THREAD_PARAMS* pParams = (THREAD_PARAMS*)lpParam;
+	if (pParams == NULL) return 0;
+	
 	char buffer[4096];
 	DWORD dwRead;
-
-	while(ReadFile(pParams->hPipeRead, buffer, sizeof(buffer) - 1, &dwRead, NULL) && dwRead > 0){
-		if (!pParams->bSilent){
-			buffer[dwRead] = '\0';
-			printf("%s", buffer);
+	DWORD dwWritten;
+	
+	HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	
+	while (ReadFile(pParams->hPipeRead, buffer, sizeof(buffer), &dwRead, NULL) && dwRead > 0)
+	{
+		if (!pParams->bSilent && hStdOut != NULL && hStdOut != INVALID_HANDLE_VALUE)
+		{
+			WriteFile(hStdOut, buffer, dwRead, &dwWritten, NULL);
 		}
 	}
+	
+	CloseHandle(pParams->hPipeRead);
+	
 	free(pParams);
+	
 	return 0;
 }
 
@@ -85,12 +88,10 @@ BOOL RunBatPipe(LPCSTR lpBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR lps
 	ZeroMemory(cmdLine, sizeof(cmdLine));
 	if (lpszBatPath) {
 		// Fatih-like mode
-		_snprintf(cmdLine, SAFE_LEN(sizeof(cmdLine)), "cmd.exe /Q /D /C \"\"%s\"\"", lpszBatPath);
-		SET_STOPPER(cmdLine, sizeof(cmdLine));
+		wnsprintfA(cmdLine, sizeof(cmdLine), "cmd.exe /Q /D /C \"\"%s\"\"", lpszBatPath);
 	} else {
 		// Memory mode
-		_snprintf(cmdLine, SAFE_LEN(sizeof(cmdLine)), "cmd.exe /Q /D /K \"@echo off\"");
-		SET_STOPPER(cmdLine, sizeof(cmdLine));
+		wnsprintfA(cmdLine, sizeof(cmdLine), "cmd.exe /Q /D /K \"@echo off\"");
 	}
 	
 	STARTUPINFOA si = { sizeof(si) };
@@ -109,7 +110,7 @@ BOOL RunBatPipe(LPCSTR lpBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR lps
 		si.hStdError = hOutWrite;
 	}
 	
-	// Solve the appstarting cursor problem
+	// Solve the appstarting cursor issue
 	MSG msg;
 	PostThreadMessage(GetCurrentThreadId(), WM_USER, 0, 0);
 	PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
@@ -132,7 +133,14 @@ BOOL RunBatPipe(LPCSTR lpBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR lps
 		if (pParams) {
 			pParams->hPipeRead = hOutRead;
 			pParams->bSilent = !bShowConsole;
-			_beginthreadex(NULL, 0, OutputReaderThread, pParams, 0, NULL);
+			
+			HANDLE hThread = CreateThread(NULL, 0, OutputReaderThread, pParams, 0, NULL);
+			if (hThread != NULL) {
+				CloseHandle(hThread);
+			} else {
+				free(pParams);
+			}
+			
 		}
 		
 		DWORD dwWritten;
@@ -148,36 +156,9 @@ BOOL RunBatPipe(LPCSTR lpBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR lps
 		WaitForSingleObject(pi.hProcess, INFINITE);
 	}
 	
-	if (!lpszBatPath) {
-		CloseHandle(hOutRead);
-	}
-	
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
 	
 	return TRUE;
 }
-
-
-void SetupConsole(LPCSTR lpszConsoleTitle){
-	// Allocate console
-	if (!AllocConsole()) return; // Return if console already exists
-	
-	FILE* fpOut = NULL;
-	freopen_s(&fpOut, "CONOUT$", "w", stdout);
-	
-	FILE* fpIn = NULL;
-	freopen_s(&fpIn, "CONIN$", "r", stdin);
-	
-	FILE* fpErr = NULL;
-	freopen_s(&fpErr, "CONOUT$", "w", stderr);
-	
-	SetConsoleTitleA(lpszConsoleTitle);
-	
-	setvbuf(stdout, NULL, _IONBF, 0);
-	setvbuf(stdin, NULL, _IONBF, 0);
-	
-}
-
-
 

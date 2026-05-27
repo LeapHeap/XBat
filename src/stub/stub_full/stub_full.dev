@@ -1,7 +1,7 @@
 [Project]
 filename = stub_full.dev
 name = stub_full
-UnitCount = 9
+UnitCount = 10
 Type = 0
 Ver = 3
 Includes = 
@@ -77,45 +77,6 @@ RealEncoding = UTF-8
 
 
 [Unit2]
-FileName = ../../common/vc6_patch.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = UTF-8
-
-
-[Unit3]
-FileName = ../stub_main.c
-CompileCpp = 0
-Folder = Sources
-Compile = 1
-Link = 1
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = ASCII
-
-
-[Unit4]
-FileName = ../../common/crypto.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = UTF-8
-
-
-[Unit5]
 FileName = ../../common/Utils.c
 CompileCpp = 0
 Folder = Sources
@@ -128,7 +89,33 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit6]
+[Unit3]
+FileName = ../../common/crypto.c
+CompileCpp = 0
+Folder = Sources
+Compile = 1
+Link = 1
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
+[Unit4]
+FileName = ../stub_main.c
+CompileCpp = 0
+Folder = Sources
+Compile = 1
+Link = 1
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
+[Unit5]
 FileName = ../../common/shared_defs.h
 CompileCpp = 0
 Folder = Headers
@@ -141,8 +128,8 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit7]
-FileName = stub_full.h
+[Unit6]
+FileName = ../../common/crypto.h
 CompileCpp = 0
 Folder = Headers
 Compile = 0
@@ -151,10 +138,10 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = ASCII
+RealEncoding = UTF-8
 
 
-[Unit8]
+[Unit7]
 FileName = ../../common/Utils.h
 CompileCpp = 0
 Folder = Headers
@@ -167,12 +154,38 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit9]
-FileName = ../../common/crypto.c
+[Unit8]
+FileName = stub_full.h
 CompileCpp = 0
-Folder = Sources
-Compile = 1
-Link = 1
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = ASCII
+
+
+[Unit9]
+FileName = ../../common/nocrt_patch.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = 
+
+
+[Unit10]
+FileName = ../../common/vc6_patch.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
 Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 

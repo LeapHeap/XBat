@@ -8,14 +8,13 @@
 #endif
 #endif
 
+#include "../common/nocrt_patch.h"
+#include "../common/vc6_patch.h"
+
 #include <windows.h>
-#include <tchar.h>
-#include <time.h>
 #include "../common/shared_defs.h"
 #include "../common/crypto.h"
 #include "../common/Utils.h"
-
-#include "../common/vc6_patch.h"
 
 #ifdef MODE_FULL
 #include "stub_full/stub_full.h"
@@ -66,8 +65,7 @@ char* WCharToAnsi(const WCHAR* wideStr) {
 static void ShowErrorMessage(LPCTSTR lpszMsg) {
 	DWORD dwErr = GetLastError();
 	TCHAR szBuf[256];
-	_sntprintf(szBuf, SAFE_LEN(_countof(szBuf)), _T("%s. Error: %u (0x%08X)"), lpszMsg, dwErr, dwErr);
-	SET_STOPPER(szBuf, _countof(szBuf));
+	wnsprintf(szBuf, _countof(szBuf), _T("%s. Error: %u (0x%08X)"), lpszMsg, dwErr, dwErr);
 	
 	MessageBox(NULL, szBuf, _T("Stub Error"), MB_ICONERROR);
 }
@@ -83,7 +81,7 @@ void SetDefaultConfig(XBAT_CONFIG* pCfg){
 	pCfg->Magic = *(UINT*)XBatMagic;
 	pCfg->GlobalFlags = 0;
 	pCfg->DropDirType = XBAT_DROP_DIR_TEMP;
-	strcpy(pCfg->szConsoleTitle, "XBat Executor Console");
+	lstrcpyA(pCfg->szConsoleTitle, "XBat Executor Console");
 }
 
 void InitGlobalConfig(HMODULE hMod){
@@ -109,8 +107,7 @@ LPBYTE XBat_ExtractResource(const LPVOID lpData, DWORD dwSize, const LPBYTE lpKe
 	if (Magic != *(UINT*)XBatMagic) return NULL;
 	
 	if (lpszOutFileName){
-		_tcsncpy(lpszOutFileName, pHeader->szFileName, SAFE_LEN(XBAT_RES_FILE_NAME_LENGTH));
-		SET_STOPPER(lpszOutFileName, XBAT_RES_FILE_NAME_LENGTH);
+		lstrcpyn(lpszOutFileName, pHeader->szFileName, XBAT_RES_FILE_NAME_LENGTH);
 	}
 	
 	if (lpdwOutAttrib) {
@@ -149,8 +146,7 @@ LPBYTE XBat_ExtractResourceEx(const LPVOID lpData, DWORD dwSize, const LPBYTE lp
 	if (pHeader->Magic != *(UINT*)XBatMagic) return NULL;
 	
 	if (lpszOutFileName){
-		_tcsncpy(lpszOutFileName, pHeader->szFileName, XBAT_RES_FILE_NAME_LENGTH - 1);
-		lpszOutFileName[XBAT_RES_FILE_NAME_LENGTH - 1] = _T('\0');
+		lstrcpyn(lpszOutFileName, pHeader->szFileName, XBAT_RES_FILE_NAME_LENGTH);
 	}
 	if (lpdwOutAttrib) *lpdwOutAttrib = pHeader->dwAttributes;
 	
@@ -185,10 +181,8 @@ LPBYTE XBat_ExtractResourceEx(const LPVOID lpData, DWORD dwSize, const LPBYTE lp
 
 
 void InitResPath(){
-	_sntprintf(g_szSessionResPath, SAFE_LEN(MAX_PATH), _T("%s\\Res"),g_szSessionDropPath);
-	SET_STOPPER(g_szSessionResPath, MAX_PATH);
+	wnsprintf(g_szSessionResPath, MAX_PATH, _T("%s\\Res"),g_szSessionDropPath);
 	CreateDirectory(g_szSessionResPath, NULL);
-	
 }
 
 //BOOL CALLBACK DbgEnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG_PTR lParam){
@@ -228,8 +222,7 @@ BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG
 		
 		if (pContent && s_szFileName[0] != _T('\0')){
 			// Safe string printer
-			_sntprintf(s_szFullPath, SAFE_LEN(MAX_PATH), _T("%s\\%s"), g_szSessionResPath, s_szFileName);
-			SET_STOPPER(s_szFullPath, MAX_PATH);
+			wnsprintf(s_szFullPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, s_szFileName);
 			
 			HANDLE hFile = CreateFile(s_szFullPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 			if (hFile != INVALID_HANDLE_VALUE) {
@@ -254,15 +247,13 @@ BOOL DropScriptToTemp(LPBYTE lpBatContent, DWORD dwContentLen, LPTSTR lpszOutPat
 	
 	TCHAR szRandom[5] = { 0 };
 	XBat_GenerateRandomString(szRandom, 5);
-	_sntprintf(lpszOutPath, SAFE_LEN(MAX_PATH), _T("%s\\%s.bat"), g_szSessionDropPath, szRandom);
-	SET_STOPPER(lpszOutPath, MAX_PATH);
+	wnsprintf(lpszOutPath, MAX_PATH, _T("%s\\%s.bat"), g_szSessionDropPath, szRandom);
 	
 	HANDLE hFile = CreateFile(lpszOutPath, GENERIC_WRITE, 0, NULL, 
 							  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) return FALSE;
 	
-	_tcsncpy(g_szSessionScriptPath, lpszOutPath, MAX_PATH - 1);
-	g_szSessionScriptPath[MAX_PATH - 1] = _T('\0');
+	lstrcpyn(g_szSessionScriptPath, lpszOutPath, MAX_PATH);
 	
 	DWORD dwWritten = 0;
 	BOOL bRet = WriteFile(hFile, lpBatContent, dwContentLen, &dwWritten, NULL);
@@ -279,8 +270,7 @@ void RunBatAsFile_Legacy_Internal(LPTSTR lpszFilePath, BOOL bShow) {
 	si.wShowWindow = bShow ? SW_SHOW : SW_HIDE;
 	
 	TCHAR szCmdLine[MAX_PATH + 32];
-	_sntprintf(szCmdLine, SAFE_LEN(_countof(szCmdLine)), _T("cmd.exe /c \"%s\""), lpszFilePath);
-	SET_STOPPER(szCmdLine, _countof(szCmdLine));
+	wnsprintf(szCmdLine, _countof(szCmdLine), _T("cmd.exe /c \"%s\""), lpszFilePath);
 	
 	DWORD dwFlags = bShow ? 0 : CREATE_NO_WINDOW;
 	if (CreateProcess(NULL, szCmdLine, NULL, NULL, FALSE, dwFlags, NULL, NULL, &si, &pi)) {
@@ -318,7 +308,9 @@ void ExecBat(LPBYTE lpBatContent, DWORD dwContentLen){
 	// Init console
 	if (bShowConsole && bUsePipe) {
 #ifdef MODE_FULL
-		SetupConsole(g_Config.szConsoleTitle);
+#ifdef MODE_CLI
+		SetConsoleTitleA(g_Config.szConsoleTitle);
+#endif
 #endif
 	}
 	
@@ -400,8 +392,7 @@ void StubProcess(){
 			if (pLastSlash) *pLastSlash = _T('\0');
 			// Build inject text
 			TCHAR szInjectHeader[MAX_PATH * 3];
-			_sntprintf(szInjectHeader, SAFE_LEN( _countof(szInjectHeader) ), _T("@set \"RESDIR=%s\"\r\n@set \"EXEPATH=%s\"\r\n"), g_szSessionResPath, szExePath);
-			SET_STOPPER(szInjectHeader, _countof(szInjectHeader));
+			wnsprintf(szInjectHeader, _countof(szInjectHeader), _T("@set \"RESDIR=%s\"\r\n@set \"EXEPATH=%s\"\r\n"), g_szSessionResPath, szExePath);
 			
 #ifdef UNICODE
 			// Convert wide header in UNICODE to ANSI for script
@@ -456,18 +447,18 @@ void StubDestroy() {
 	}
 	
 	if (bDeleteRoot) {
-		_tcsncpy(szDelPath, g_szSessionDropPath, MAX_PATH);
+		lstrcpyn(szDelPath, g_szSessionDropPath, MAX_PATH);
 	} else {
 		// Delete script only
-		if (_tcslen(g_szSessionScriptPath) > 0) {
-			_tcsncpy(szDelPath, g_szSessionScriptPath, MAX_PATH);
+		if (lstrlen(g_szSessionScriptPath) > 0) {
+			lstrcpyn(szDelPath, g_szSessionScriptPath, MAX_PATH);
 		} else {
 			return;
 		}
 	}
 	
 	// SHFileOperation must be terminated with double NULL
-	size_t nLen = _tcslen(szDelPath);
+	size_t nLen = lstrlen(szDelPath);
 	szDelPath[nLen] = _T('\0');
 	szDelPath[nLen + 1] = _T('\0');
 	
@@ -502,30 +493,86 @@ void InitSessionDropPath(){
 	
 	TCHAR szRandom[5] = {0};
 	XBat_GenerateRandomString(szRandom, 5);
-	_sntprintf(g_szSessionDropPath, SAFE_LEN(MAX_PATH), _T("%s\\XBAT.%s"), szTempPath, szRandom);
-	SET_STOPPER(g_szSessionDropPath, MAX_PATH);
+	wnsprintf(g_szSessionDropPath, MAX_PATH, _T("%s\\XBAT.%s"), szTempPath, szRandom);
 	
 	// Create dir
 	CreateDirectory(g_szSessionDropPath, NULL);
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
-	g_hStub = (HMODULE)hInstance;
-	srand((unsigned int)time(NULL));
+//int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
+//	g_hStub = GetModuleHandle(NULL);
+//	
+//	InitGlobalConfig(g_hStub);
+//	
+//	if ((g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE) || (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES)){
+//		InitSessionDropPath();
+//		if (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES) InitResPath();
+//	}
+//	
+//	StubProcess();
+//	
+//	if (g_Config.GlobalFlags & XBAT_FLAG_SELF_DESTROY){
+//		StubDestroy();
+//	}
+//	
+//	return 0;
+//}
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 	
-	InitGlobalConfig(g_hStub);
-	
-	if ((g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE) || (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES)){
-		InitSessionDropPath();
-		if (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES) InitResPath();
+	void WINAPI MyMain(void)
+	{
+		g_hStub = GetModuleHandle(NULL);
+		
+		InitGlobalConfig(g_hStub);
+		
+		if ((g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE) || (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES)){
+			InitSessionDropPath();
+			if (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES) InitResPath();
+		}
+		
+		StubProcess();
+		
+		if (g_Config.GlobalFlags & XBAT_FLAG_SELF_DESTROY){
+			StubDestroy();
+		}
+		
+		ExitProcess(0);
 	}
 	
-	StubProcess();
-	
-	if (g_Config.GlobalFlags & XBAT_FLAG_SELF_DESTROY){
-		StubDestroy();
-	}
-	
-	return 0;
+#ifdef __cplusplus
 }
+#endif
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+	
+#undef memset
+	void* memset(void* dest, int ch, size_t count)
+	{
+		char* d = (char*)dest;
+		while (count--) {
+			*d++ = (char)ch;
+		}
+		return dest;
+	}
+	
+#undef memcpy
+	void* memcpy(void* dest, const void* src, size_t count)
+	{
+		char* d = (char*)dest;
+		const char* s = (const char*)src;
+		while (count--) {
+			*d++ = *s++;
+		}
+		return dest;
+	}
+	
+#ifdef __cplusplus
+}
+#endif
 

@@ -2,7 +2,6 @@
 #define SHARED_DEFS_H
 
 #include <windows.h>
-#include <tchar.h>
 
 #define XBAT_MAGIC_DATA {0x58,0x42,0x41,0x54} // "XBAT"
 #define XBAT_MAGIC_INT 0x54414258

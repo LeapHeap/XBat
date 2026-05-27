@@ -1,7 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <Windows.h>
+#include <windows.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,8 +16,6 @@ void XBat_GenerateRandomString(TCHAR* pszBuffer, DWORD dwSize);
 BOOL XBat_GenerateRandomBytes(BYTE* lpBuffer, DWORD dwSize);
 
 #endif // MODE_CONVERTER
-
-
 
 
 #endif // !UTILS_H

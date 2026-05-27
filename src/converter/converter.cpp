@@ -634,25 +634,39 @@ int main(int argc, char* argv[]) {
 		}
 
 		if (!vecUserDirs.empty()) {
-			TCHAR szTempArchivePath[MAX_PATH], szTempConfigPath[MAX_PATH], szExtractorExePath[MAX_PATH];
+			TCHAR szTempArchivePath[MAX_PATH], szExtractorExePath[MAX_PATH];
 
 			TCHAR sz7zPath[MAX_PATH];
 			_stprintf_s(sz7zPath, MAX_PATH, _T("%s\\tools\\7zr.exe"), g_szConverterDirPath);
 
 			_stprintf_s(szTempArchivePath, MAX_PATH, _T("%s\\dir_pack.7z"), g_szTempWorkDirPath);
+
+			//// Copy base.7z to temp archive
+			//TCHAR szBaseArchivePath[MAX_PATH];
+			//_stprintf_s(szBaseArchivePath, MAX_PATH, _T("%s\\templates\\base.7z"), g_szConverterDirPath);
+			//CopyFile(szBaseArchivePath, szTempArchivePath, FALSE);
+
 			_stprintf_s(g_szExtractorExePath, MAX_PATH, _T("%s\\dir_extractor.exe"), g_szTempWorkDirPath);
 			_tcscpy_s(szExtractorExePath, MAX_PATH, g_szExtractorExePath);
+			
+			// Write config file in ASCII
+			TCHAR szTempConfigPath[MAX_PATH];
 			_stprintf_s(szTempConfigPath, MAX_PATH, _T("%s\\sfx_cfg.txt"), g_szTempWorkDirPath);
-			FILE* fp;
-			_tfopen_s(&fp, szTempConfigPath, _T("w, ccs=UTF-8"));
-			if (fp) {
-				_ftprintf(fp, _T(";!@Install@!UTF-8!\n"));
-				_ftprintf(fp, _T("Progress=\"Off\"\n"));
-				_ftprintf(fp, _T("Directory=\".\"\n"));
-				_ftprintf(fp, _T(";!@InstallEnd@!\n"));
+			char szTempConfigPathA[MAX_PATH];
+			TCHAR2CHAR(szTempConfigPathA, szTempConfigPath, MAX_PATH);
+
+			FILE* fp = NULL;
+			if (fopen_s(&fp, szTempConfigPathA, "wb") == 0 && fp) {
+				fprintf(fp, ";!@Install@!UTF-8!\r\n");
+				fprintf(fp, "Progress=\"Off\"\r\n");
+				fprintf(fp, "Directory=\"\"\r\n");
+				fprintf(fp, "RunProgram=\"rundll32.exe None\"\r\n");
+				fprintf(fp, ";!@InstallEnd@!\r\n");
+				fprintf(fp, "\r\n\r\n\r\n\r\n");
 				fclose(fp);
 			}
-			
+
+			// Archive user folders
 			for (size_t d = 0; d < vecUserDirs.size(); ++d) {
 				STARTUPINFO si = { 0 };
 				PROCESS_INFORMATION pi = { 0 };
@@ -660,7 +674,7 @@ int main(int argc, char* argv[]) {
 				static TCHAR szCmdLine[(MAX_PATH * 2) + 64];
 				TCHAR szCurrIncPathT[MAX_PATH];
 				CHAR2TCHAR(szCurrIncPathT, vecUserDirs[d].data(), MAX_PATH);
-				_stprintf_s(szCmdLine, _countof(szCmdLine), _T("\"%s\" a \"%s\" \"%s\""), sz7zPath ,szTempArchivePath, szCurrIncPathT);
+				_stprintf_s(szCmdLine, _countof(szCmdLine), _T("\"%s\" a \"%s\" \"%s\" -m0=LZMA -mx=9 -ms=on"), sz7zPath ,szTempArchivePath, szCurrIncPathT);
 				if (!CreateProcess(
 					NULL,
 					szCmdLine,
