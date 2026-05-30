@@ -153,7 +153,7 @@ BOOL DirectoryExists(LPCTSTR lpszPath)
 }
 
 TCHAR g_szTempWorkDirPath[MAX_PATH];
-TCHAR g_szExtractorExePath[MAX_PATH];
+TCHAR g_szTempArchivePath[MAX_PATH] = { 0 };
 TCHAR g_szConverterExePath[MAX_PATH] = { 0 };
 TCHAR g_szConverterDirPath[MAX_PATH] = { 0 };
 
@@ -316,23 +316,22 @@ static void ConverterProcess(CONVERTER_LIST* lpList) {
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), obfuscatedKey, 16);
 
 	// TODO: Inject sfx starter if there is one
-	if (PathFileExists(g_szExtractorExePath)) {
+	if (PathFileExists(g_szTempArchivePath)) {
 		// Assume that script is ANSI and CRLF
 
 		CHAR szInjectionA[256];
-		CHAR szExeNameA[MAX_PATH];
+		CHAR szFileNameA[MAX_PATH];
 
-		// Get extractor file name
-		int pos = _tcslen(g_szExtractorExePath);
-		while (pos > 0 && g_szExtractorExePath[pos - 1] != _T('\\')) pos--;
-		TCHAR* pszExtractorExeName = g_szExtractorExePath + pos;
+		// Get archive file name
+		int pos = _tcslen(g_szTempArchivePath);
+		while (pos > 0 && g_szTempArchivePath[pos - 1] != _T('\\')) pos--;
+		TCHAR* pszFileName = g_szTempArchivePath + pos;
 
-		// Convert TCHAR extractor file name to ANSI
-		TCHAR2CHAR(szExeNameA, pszExtractorExeName, MAX_PATH);
+		// Convert TCHAR file name to ANSI
+		TCHAR2CHAR(szFileNameA, pszFileName, MAX_PATH);
 		sprintf_s(szInjectionA, sizeof(szInjectionA),
-			"start /wait \"\" \"%%RESDIR%%\\%s\"\r\n"
-			"del /f /q /a:h \"%%RESDIR%%\\%s\"\r\n",
-			szExeNameA, szExeNameA);
+			"start /wait \"\" \"%%RESDIR%%\\7zdec.exe\" x \"%%RESDIR%%\\%s\" -o\"%%RESDIR%%\" -y\r\n",
+			szFileNameA);
 
 		DWORD dwInjectBytes = (DWORD)strlen(szInjectionA);
 		DWORD dwFinalLen = dwInjectBytes + dwScriptLen;
@@ -634,47 +633,31 @@ int main(int argc, char* argv[]) {
 		}
 
 		if (!vecUserDirs.empty()) {
-			TCHAR szTempArchivePath[MAX_PATH], szExtractorExePath[MAX_PATH];
+			TCHAR szTempArchivePath[MAX_PATH];
+			TCHAR sz7zDecExePath[MAX_PATH];
+			if (opt.bUseX64) {
+				_stprintf_s(sz7zDecExePath, MAX_PATH, _T("%s\\templates\\resources\\x64\\7zdec.exe"), g_szConverterDirPath);
+			}
+			else {
+				_stprintf_s(sz7zDecExePath, MAX_PATH, _T("%s\\templates\\resources\\x86\\7zdec.exe"), g_szConverterDirPath);
+			}
+			
 
 			TCHAR sz7zPath[MAX_PATH];
 			_stprintf_s(sz7zPath, MAX_PATH, _T("%s\\tools\\7zr.exe"), g_szConverterDirPath);
 
 			_stprintf_s(szTempArchivePath, MAX_PATH, _T("%s\\dir_pack.7z"), g_szTempWorkDirPath);
-
-			//// Copy base.7z to temp archive
-			//TCHAR szBaseArchivePath[MAX_PATH];
-			//_stprintf_s(szBaseArchivePath, MAX_PATH, _T("%s\\templates\\base.7z"), g_szConverterDirPath);
-			//CopyFile(szBaseArchivePath, szTempArchivePath, FALSE);
-
-			_stprintf_s(g_szExtractorExePath, MAX_PATH, _T("%s\\dir_extractor.exe"), g_szTempWorkDirPath);
-			_tcscpy_s(szExtractorExePath, MAX_PATH, g_szExtractorExePath);
-			
-			// Write config file in ASCII
-			TCHAR szTempConfigPath[MAX_PATH];
-			_stprintf_s(szTempConfigPath, MAX_PATH, _T("%s\\sfx_cfg.txt"), g_szTempWorkDirPath);
-			char szTempConfigPathA[MAX_PATH];
-			TCHAR2CHAR(szTempConfigPathA, szTempConfigPath, MAX_PATH);
-
-			FILE* fp = NULL;
-			if (fopen_s(&fp, szTempConfigPathA, "wb") == 0 && fp) {
-				fprintf(fp, ";!@Install@!UTF-8!\r\n");
-				fprintf(fp, "Progress=\"Off\"\r\n");
-				fprintf(fp, "Directory=\"\"\r\n");
-				fprintf(fp, "RunProgram=\"rundll32.exe None\"\r\n");
-				fprintf(fp, ";!@InstallEnd@!\r\n");
-				fprintf(fp, "\r\n\r\n\r\n\r\n");
-				fclose(fp);
-			}
+			_tcscpy_s(g_szTempArchivePath, MAX_PATH, szTempArchivePath);
 
 			// Archive user folders
 			for (size_t d = 0; d < vecUserDirs.size(); ++d) {
 				STARTUPINFO si = { 0 };
 				PROCESS_INFORMATION pi = { 0 };
 				si.cb = sizeof(si);
-				static TCHAR szCmdLine[(MAX_PATH * 2) + 64];
+				static TCHAR szCmdLine[(MAX_PATH * 3) + 64];
 				TCHAR szCurrIncPathT[MAX_PATH];
 				CHAR2TCHAR(szCurrIncPathT, vecUserDirs[d].data(), MAX_PATH);
-				_stprintf_s(szCmdLine, _countof(szCmdLine), _T("\"%s\" a \"%s\" \"%s\" -m0=LZMA -mx=9 -ms=on"), sz7zPath ,szTempArchivePath, szCurrIncPathT);
+				_stprintf_s(szCmdLine, _countof(szCmdLine), _T("\"%s\" a \"%s\" \"%s\" -m0=LZMA -ms=on"), sz7zPath ,szTempArchivePath, szCurrIncPathT);
 				if (!CreateProcess(
 					NULL,
 					szCmdLine,
@@ -694,24 +677,17 @@ int main(int argc, char* argv[]) {
 				CloseHandle(pi.hProcess);
 			}
 
-			// Make sfx extractor
-			TCHAR szSfxTemplatePath[MAX_PATH];
-			_stprintf_s(szSfxTemplatePath, MAX_PATH, _T("%s\\templates\\7zSD.sfx"), g_szConverterDirPath);
+			// Add archive and decoder as resources
+			XBAT_RESOURCE ArchiveRes = { 0 };
+			_tcscpy_s(ArchiveRes.szFilePath, MAX_PATH, szTempArchivePath);
+			ArchiveRes.dwFileAttribute = GetFileAttributes(ArchiveRes.szFilePath);
+			lst.vecResList.push_back(ArchiveRes);
 
-			const TCHAR* arrSrcFiles[3] = {
-				szSfxTemplatePath,
-				szTempConfigPath,
-				szTempArchivePath
-			};
+			XBAT_RESOURCE DecoderRes = { 0 };
+			_tcscpy_s(DecoderRes.szFilePath, MAX_PATH, sz7zDecExePath);
+			DecoderRes.dwFileAttribute = GetFileAttributes(DecoderRes.szFilePath);
+			lst.vecResList.push_back(DecoderRes);
 
-			if (!Win32_CombineFilesBinary(szExtractorExePath, arrSrcFiles, 3)) {
-				fprintf(stderr, "Error: Failed to combine files into extractor binary.\n");
-			}
-
-			XBAT_RESOURCE dirRes = { 0 };
-			_tcscpy_s(dirRes.szFilePath, MAX_PATH, szExtractorExePath);
-			dirRes.dwFileAttribute = FILE_ATTRIBUTE_HIDDEN;
-			lst.vecResList.push_back(dirRes);
 		}
 	}
 

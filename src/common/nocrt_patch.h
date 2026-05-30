@@ -3,21 +3,7 @@
 
 #include <windows.h>
 
-// ======================================================================
-// 1. Memory management
-// ======================================================================
-#undef ZeroMemory
-#undef RtlZeroMemory
-#undef memset
-#undef memcpy
-#undef memmove
 
-#define RtlZeroMemory(dest, size)    memset((dest), 0, (size))
-#define ZeroMemory(dest, size)       memset((dest), 0, (size))
-#define zero_memory(dest, size)      memset((dest), 0, (size))
-
-#define memcpy(dest, src, size)      RtlCopyMemory((dest), (src), (size))
-#define memmove(dest, src, size)     RtlMoveMemory((dest), (src), (size))
 
 // ======================================================================
 // 2. Mapping for code
@@ -41,20 +27,32 @@
 #else
 #define _tcsrchr(str, ch)    StrRChrA((str), NULL, (ch))
 #endif
+#undef strrchr
+#define strrchr(str, ch)     StrRChrA((str), NULL, (ch))
+
 
 // ======================================================================
-// 5. _T Macro
+// 5. _T and _TEXT Macros - Map to Windows TEXT macro
 // ======================================================================
-#ifndef _TEXT
+
+// Ensure TEXT macro is available (provided by windows.h)
+#ifndef TEXT
 #ifdef UNICODE
-#define _TEXT(x) L##x
+#define TEXT(x) L##x
 #else
-#define _TEXT(x) x
+#define TEXT(x) x
 #endif
 #endif
 
+// Map _TEXT to TEXT for C runtime compatibility
+#ifndef _TEXT
+#define _TEXT(x) TEXT(x)
+#endif
+
+// Map _T to TEXT for TCHAR compatibility
 #ifndef _T
-#define _T(x) _TEXT(x)
+#define _T(x) TEXT(x)
 #endif
 
 #endif
+

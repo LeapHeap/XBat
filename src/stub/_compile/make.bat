@@ -67,7 +67,7 @@ setlocal
 set "PATH=%MINGW64_BIN%;%PATH%"
 if not exist "%OUT_X64%" mkdir "%OUT_X64%"
 
-set "CFLAGS=-Os -pipe -ffreestanding -mno-stack-arg-probe -fno-ms-extensions -ffunction-sections -fdata-sections -fno-ident -fno-asynchronous-unwind-tables -DUNICODE -D_UNICODE %~3"
+set "CFLAGS=-Os -pipe -ffreestanding -fno-builtin-memcpy -fno-builtin-memset -fno-builtin-memcmp -mno-stack-arg-probe -fno-ms-extensions -ffunction-sections -fdata-sections -fno-ident -fno-asynchronous-unwind-tables -DUNICODE -D_UNICODE %~3"
 set "LDFLAGS=-m%~4 -nostdlib -e %ENTRY_NAME% -Wl,--gc-sections -s"
 
 :: Compile Modules
@@ -100,7 +100,7 @@ setlocal
 set "PATH=%MINGW32_BIN%;%PATH%"
 if not exist "%OUT_X86%" mkdir "%OUT_X86%"
 
-set "CFLAGS=-m32 -Os -pipe -ffreestanding -mno-stack-arg-probe -fno-ms-extensions -ffunction-sections -fdata-sections -fno-ident -fno-asynchronous-unwind-tables -DUNICODE -D_UNICODE %~3"
+set "CFLAGS=-m32 -Os -pipe -ffreestanding -fno-builtin-memcpy -fno-builtin-memset -fno-builtin-memcmp -mno-stack-arg-probe -fno-ms-extensions -ffunction-sections -fdata-sections -fno-ident -fno-asynchronous-unwind-tables -DUNICODE -D_UNICODE %~3"
 :: Using _%ENTRY_NAME%@0 for x86 entries
 set "LDFLAGS=-m%~4 -nostdlib -e _%ENTRY_NAME%@0 -Wl,--gc-sections -s"
 

@@ -8,10 +8,53 @@
 #endif
 #endif
 
+#include <windows.h>
+// Memory function shim
+#ifdef __cplusplus
+extern "C" {
+#endif
+	
+	
+#undef memcpy
+#undef memset
+#undef RtlMoveMemory
+#undef RtlFillMemory
+	
+	
+	__declspec(dllimport)
+	void __stdcall RtlMoveMemory(
+								 void* Destination,
+								 const void* Source,
+								 size_t Length
+								 );
+	
+	__declspec(dllimport)
+	void __stdcall RtlFillMemory(
+								 void* Destination,
+								 size_t Length,
+								 unsigned char Fill
+								 );
+	
+	void* memcpy(void* dest, const void* src, size_t count)
+	{
+		RtlMoveMemory(dest, src, count);
+		return dest;
+	}
+	
+	void* memset(void* dest, int ch, size_t count)
+	{
+		RtlFillMemory(dest, count, (unsigned char)ch);
+		return dest;
+	}
+	
+	
+#ifdef __cplusplus
+}
+#endif
+
 #include "../common/nocrt_patch.h"
 #include "../common/vc6_patch.h"
 
-#include <windows.h>
 #include "../common/shared_defs.h"
 #include "../common/crypto.h"
 #include "../common/Utils.h"
@@ -190,9 +233,6 @@ void InitResPath(){
 //	return TRUE;
 //}
 
-// Use static variables to avoid stack problem in callback function
-static TCHAR s_szFileName[MAX_PATH];
-static TCHAR s_szFullPath[MAX_PATH];
 
 BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG_PTR lParam){
 	if (IS_INTRESOURCE(lpName)){
@@ -207,38 +247,52 @@ BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG
 		DWORD dwFileAttrib = 0;
 		BYTE* pContent = NULL;
 		
-		// Clean old data
-		s_szFileName[0] = _T('\0');
+		TCHAR* pLocalFileName = (TCHAR*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, MAX_PATH * sizeof(TCHAR));
+		TCHAR* pLocalFullPath = (TCHAR*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, MAX_PATH * sizeof(TCHAR));
+		
+		if (!pLocalFileName || !pLocalFullPath) {
+			if (pLocalFileName) HeapFree(GetProcessHeap(), 0, pLocalFileName);
+			if (pLocalFullPath) HeapFree(GetProcessHeap(), 0, pLocalFullPath);
+			return TRUE;
+		}
+		
+//		// Clean old data
+//		s_szFileName[0] = _T('\0');
 		
 #ifdef MODE_FULL
 		if (g_Config.GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED){
-			pContent = XBat_ExtractResourceEx(pData, dwSize, FinalKey, XBAT_FINAL_KEY_LENGTH, &dwContentOutLen, s_szFileName, &dwFileAttrib);
+			pContent = XBat_ExtractResourceEx(pData, dwSize, FinalKey, XBAT_FINAL_KEY_LENGTH, &dwContentOutLen, pLocalFileName, &dwFileAttrib);
 		} else {
-			pContent = XBat_ExtractResource(pData, dwSize, FinalKey, XBAT_FINAL_KEY_LENGTH, &dwContentOutLen, s_szFileName, &dwFileAttrib);
+			pContent = XBat_ExtractResource(pData, dwSize, FinalKey, XBAT_FINAL_KEY_LENGTH, &dwContentOutLen, pLocalFileName, &dwFileAttrib);
 		}
 #else
-		pContent = XBat_ExtractResource(pData, dwSize, FinalKey, XBAT_FINAL_KEY_LENGTH, &dwContentOutLen, s_szFileName, &dwFileAttrib);
+		pContent = XBat_ExtractResource(pData, dwSize, FinalKey, XBAT_FINAL_KEY_LENGTH, &dwContentOutLen, pLocalFileName, &dwFileAttrib);
 #endif
 		
-		if (pContent && s_szFileName[0] != _T('\0')){
+		if (pContent && pLocalFileName[0] != _T('\0')){
 			// Safe string printer
-			wnsprintf(s_szFullPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, s_szFileName);
+			wnsprintf(pLocalFullPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, pLocalFileName);
 			
-			HANDLE hFile = CreateFile(s_szFullPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			HANDLE hFile = CreateFile(pLocalFullPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 			if (hFile != INVALID_HANDLE_VALUE) {
 				DWORD dwWritten;
 				WriteFile(hFile, pContent, dwContentOutLen, &dwWritten, NULL);
 				CloseHandle(hFile);
-				SetFileAttributes(s_szFullPath, dwFileAttrib);
+				SetFileAttributes(pLocalFullPath, dwFileAttrib);
 			}
 			free(pContent);
 		}
+		
+		HeapFree(GetProcessHeap(), 0, pLocalFileName);
+		HeapFree(GetProcessHeap(), 0, pLocalFullPath);
+		
 	}
 	return TRUE;
 }
 
 
 BOOL DropScriptToTemp(LPBYTE lpBatContent, DWORD dwContentLen, LPTSTR lpszOutPath) {
+	
 	if (lpBatContent == NULL || dwContentLen == 0 || lpszOutPath == NULL) return FALSE;
 	
 	if (!CreateDirectory(g_szSessionDropPath, NULL)) {
@@ -262,7 +316,7 @@ BOOL DropScriptToTemp(LPBYTE lpBatContent, DWORD dwContentLen, LPTSTR lpszOutPat
 	return bRet && (dwWritten == dwContentLen);
 }
 
-void RunBatAsFile_Legacy_Internal(LPTSTR lpszFilePath, BOOL bShow) {
+static void RunBatAsFile_Legacy_Internal(LPTSTR lpszFilePath, BOOL bShow) {
 	STARTUPINFO si = { sizeof(si) };
 	PROCESS_INFORMATION pi = { 0 };
 	
@@ -303,7 +357,8 @@ void ExecBat(LPBYTE lpBatContent, DWORD dwContentLen){
 	bRunAsFile = (g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE);	
 #endif
 	
-	TCHAR szFilePath[MAX_PATH] = {0};
+	static TCHAR szFilePath[MAX_PATH];
+	memset(szFilePath, 0, sizeof(szFilePath));
 	
 	// Init console
 	if (bShowConsole && bUsePipe) {
@@ -378,45 +433,40 @@ void StubProcess(){
 	
 	
 	if (pBatContent){
-		//TODO: run bat in modes
-		
 		BYTE* pFinalContent = pBatContent;
-		DWORD dwFinalLen =dwBatContentOutLen;
+		DWORD dwFinalLen = dwBatContentOutLen;
 		
 		// If has user resources
 		if (g_Config.GlobalFlags & XBAT_FLAG_HAS_USER_RESOURCES){
-			TCHAR szExePath[MAX_PATH];
-			GetModuleFileName(NULL, szExePath, MAX_PATH);
-			// Get the directory part
-			TCHAR* pLastSlash = _tcsrchr(szExePath, _T('\\'));
-			if (pLastSlash) *pLastSlash = _T('\0');
-			// Build inject text
-			TCHAR szInjectHeader[MAX_PATH * 3];
-			wnsprintf(szInjectHeader, _countof(szInjectHeader), _T("@set \"RESDIR=%s\"\r\n@set \"EXEPATH=%s\"\r\n"), g_szSessionResPath, szExePath);
 			
-#ifdef UNICODE
-			// Convert wide header in UNICODE to ANSI for script
-			int nHeaderLen = WideCharToMultiByte(CP_ACP, 0, szInjectHeader, -1, NULL, 0, NULL, NULL) - 1;
-			char* pHeaderA = (char*)malloc(nHeaderLen + 1);
-			WideCharToMultiByte(CP_ACP, 0, szInjectHeader, -1, pHeaderA, nHeaderLen + 1, NULL, NULL);
-#else
-			int nHeaderLen = _tcslen(szInjectHeader);
-			char* pHeaderA = szInjectHeader; // Point to ANSI header directly
-#endif
+			char szExePathA[MAX_PATH];
+			GetModuleFileNameA(NULL, szExePathA, MAX_PATH);
 			
-			// Merge content
-			dwFinalLen = nHeaderLen + dwBatContentOutLen;
-			pFinalContent = (BYTE*)malloc(dwFinalLen);
-			memcpy(pFinalContent, pHeaderA, nHeaderLen);
-			memcpy(pFinalContent + nHeaderLen, pBatContent, dwBatContentOutLen);
+			char* pLastSlashA = strrchr(szExePathA, '\\');
+			if (pLastSlashA) *pLastSlashA = '\0';
 			
-#ifdef UNICODE
-			free(pHeaderA); // Free the heap memory allocated due to W2MB conversion
-#endif
-			free(pBatContent); // Free the og bat content memory
+			char szResPathA[MAX_PATH];
+			WideCharToMultiByte(CP_ACP, 0, g_szSessionResPath, -1, szResPathA, MAX_PATH, NULL, NULL);
+			
+			char szInjectHeaderA[MAX_PATH * 3];
+			wnsprintfA(szInjectHeaderA, _countof(szInjectHeaderA), "@set \"RESDIR=%s\"\r\n@set \"EXEPATH=%s\"\r\n", szResPathA, szExePathA);
+			
+			size_t nHeaderLen = lstrlenA(szInjectHeaderA); 
+			size_t totalLen = nHeaderLen + (size_t)dwBatContentOutLen;
+			
+			pFinalContent = (BYTE*)malloc(totalLen);
+			if (pFinalContent) {
+				memcpy(pFinalContent, szInjectHeaderA, nHeaderLen);
+				memcpy(pFinalContent + nHeaderLen, pBatContent, dwBatContentOutLen);
+				dwFinalLen = (DWORD)totalLen;
+			}
+			
+			free(pBatContent); 
 			
 			EnumResourceNames(hMod, RT_RCDATA, EnumResNamesFunc, 0);
 		} 
+		
+		MessageBox(NULL,_T("Before entering ExecBat"),_T("Info"),MB_ICONINFORMATION);
 		
 		ExecBat(pFinalContent, dwFinalLen);
 		
@@ -521,9 +571,8 @@ void InitSessionDropPath(){
 #ifdef __cplusplus
 extern "C" {
 #endif
-	
-	void WINAPI MyMain(void)
-	{
+		
+	void RealMain(void){
 		g_hStub = GetModuleHandle(NULL);
 		
 		InitGlobalConfig(g_hStub);
@@ -542,37 +591,21 @@ extern "C" {
 		ExitProcess(0);
 	}
 	
-#ifdef __cplusplus
-}
-#endif
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-	
-#undef memset
-	void* memset(void* dest, int ch, size_t count)
+	void WINAPI MyMain(void)
 	{
-		char* d = (char*)dest;
-		while (count--) {
-			*d++ = (char)ch;
-		}
-		return dest;
-	}
-	
-#undef memcpy
-	void* memcpy(void* dest, const void* src, size_t count)
-	{
-		char* d = (char*)dest;
-		const char* s = (const char*)src;
-		while (count--) {
-			*d++ = *s++;
-		}
-		return dest;
+		#if defined(_WIN64)
+		__asm__ (
+				 "andq $-16, %rsp\n\t"
+				 "subq $32, %rsp\n\t"
+				 "call RealMain\n\t"
+				 );
+#else
+		RealMain(); 
+#endif
 	}
 	
 #ifdef __cplusplus
 }
 #endif
+
 

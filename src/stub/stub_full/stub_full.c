@@ -1,9 +1,8 @@
+#include "../../common/nocrt_patch.h"
+
 #include "stub_full.h"
 #include <windows.h>
 #include "../../common/lzma_sdk/lzmadec/LzmaDec.h"
-
-#include "../../common/nocrt_patch.h"
-#include "../../common/vc6_patch.h"
 
 // LZMA sdk allocator
 static void* SzAlloc(ISzAllocPtr p, size_t size) { return malloc(size); }
