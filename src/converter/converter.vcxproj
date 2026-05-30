@@ -131,21 +131,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\common\crypto.c" />
-    <ClCompile Include="..\common\lzma_sdk\C\CpuArch.c" />
-    <ClCompile Include="..\common\lzma_sdk\C\LzFind.c" />
-    <ClCompile Include="..\common\lzma_sdk\C\LzFindMt.c" />
-    <ClCompile Include="..\common\lzma_sdk\C\LzFindOpt.c" />
-    <ClCompile Include="..\common\lzma_sdk\C\LzmaEnc.c" />
-    <ClCompile Include="..\common\lzma_sdk\C\Threads.c" />
     <ClCompile Include="..\common\Utils.c" />
     <ClCompile Include="converter.cpp" />
-    <ClCompile Include="restool.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\crypto.h" />
     <ClInclude Include="..\common\shared_defs.h" />
     <ClInclude Include="..\common\Utils.h" />
-    <ClInclude Include="restool.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

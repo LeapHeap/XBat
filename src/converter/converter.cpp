@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <Windows.h>
 #include <tchar.h>
-#include <time.h>
 #include <vector>
 #include <string>
 #include <Shlwapi.h>
@@ -17,10 +16,8 @@
 extern "C" {
 #endif
 #include "../common/shared_defs.h"
-#include "../common/lzma_sdk/C/LzmaEnc.h"
 #include "../common/crypto.h"
 #include "../common/Utils.h"
-#include "restool.h"
 #ifdef __cplusplus
 }
 #endif
@@ -158,7 +155,6 @@ TCHAR g_szConverterExePath[MAX_PATH] = { 0 };
 TCHAR g_szConverterDirPath[MAX_PATH] = { 0 };
 
 BOOL InitTempWorkDir() {
-	srand((unsigned int)time(NULL));
 	TCHAR szTempPath[MAX_PATH];
 	if (GetTempPath(MAX_PATH, szTempPath) == 0) {
 		// Use current dir if failed
@@ -185,10 +181,6 @@ int DestroyTempWorkDir() {
 	return SHFileOperation(&shfo);
 }
 
-static void* SzAlloc(ISzAllocPtr p, size_t size) { return malloc(size); }
-static void SzFree(ISzAllocPtr p, void* address) { free(address); }
-static ISzAlloc g_Alloc = { SzAlloc, SzFree };
-
 static LPBYTE LoadFileToBuffer(LPCTSTR lpszFilePath, LPDWORD lpdwSize) {
 	HANDLE hFile = CreateFile(lpszFilePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) return NULL;
@@ -203,40 +195,6 @@ static LPBYTE LoadFileToBuffer(LPCTSTR lpszFilePath, LPDWORD lpdwSize) {
 	return pBuffer;
 }
 
-static LPBYTE CompressDataLZMA(const LPBYTE lpRawData, DWORD dwRawLen, LPDWORD lpOutCompressedLen) {
-	SizeT destLen = (SizeT)dwRawLen + dwRawLen / 8 + 65536;
-	BYTE* pDestBuf = (BYTE*)malloc(destLen);
-	if (!pDestBuf) return NULL;
-
-	CLzmaEncProps props;
-	LzmaEncProps_Init(&props);
-	props.level = 9;
-	props.dictSize = 1 << 24;
-	props.writeEndMark = 0;
-
-	SizeT propsSize = LZMA_PROPS_SIZE;
-	BYTE propsEncoded[LZMA_PROPS_SIZE];
-
-	SizeT outSizeProcessed = destLen - LZMA_PROPS_SIZE;
-
-	SRes res = LzmaEncode(
-		pDestBuf + LZMA_PROPS_SIZE, &outSizeProcessed,
-		lpRawData, (SizeT)dwRawLen,
-		&props,
-		pDestBuf, &propsSize,
-		props.writeEndMark,
-		NULL,                                           // progress callback
-		&g_Alloc, &g_Alloc
-	);
-
-	if (res != SZ_OK) {
-		free(pDestBuf);
-		return NULL;
-	}
-
-	*lpOutCompressedLen = (DWORD)(outSizeProcessed + LZMA_PROPS_SIZE);
-	return pDestBuf;
-}
 
 static BOOL PackAndInjectResourceEx(
 	HANDLE hUpdate,
@@ -245,25 +203,13 @@ static BOOL PackAndInjectResourceEx(
 	DWORD dwDataLen,
 	const LPBYTE lpKey,
 	LPCTSTR lpszTargetFileName,
-	DWORD dwAttrib,
-	BOOL bCompress
+	DWORD dwAttrib
 ) {
 	BYTE* pFinalDataToEncrypt = (BYTE*)lpRawData;
 	DWORD dwFinalDataLen = dwDataLen;
-	BYTE* pCompressedBuffer = NULL;
-
-
-	if (bCompress) {
-		pCompressedBuffer = CompressDataLZMA(lpRawData, dwDataLen, &dwFinalDataLen);
-		if (pCompressedBuffer) {
-			pFinalDataToEncrypt = pCompressedBuffer;
-		}
-	}
-
 
 	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)malloc(sizeof(XBAT_RES_HEADER) + dwFinalDataLen);
 	if (!pHeader) {
-		if (pCompressedBuffer) free(pCompressedBuffer);
 		return FALSE;
 	}
 
@@ -286,13 +232,13 @@ static BOOL PackAndInjectResourceEx(
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
 		pHeader, sizeof(XBAT_RES_HEADER) + dwFinalDataLen - 1);
 
-	if (pCompressedBuffer) free(pCompressedBuffer);
 	free(pHeader);
 	return bRet;
 }
 
 static void ConverterProcess(CONVERTER_LIST* lpList) {
-	BOOL bEnableLzma = (lpList->lpConfig->GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED);
+	// Using FALSE since lzma is deprecated
+	BOOL bEnableLzma = FALSE;
 	BYTE rawKey[16] = { 0 }; // The key to encrypt resources
 	XBat_GenerateRandomBytes(rawKey, 16);
 	BYTE obfuscatedKey[16];
@@ -315,40 +261,43 @@ static void ConverterProcess(CONVERTER_LIST* lpList) {
 	UpdateResource(hUpdate, RT_RCDATA, MAKEINTRESOURCE(IDR_XBAT_KEY),
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), obfuscatedKey, 16);
 
-	// TODO: Inject sfx starter if there is one
-	if (PathFileExists(g_szTempArchivePath)) {
-		// Assume that script is ANSI and CRLF
+	//if (PathFileExists(g_szTempArchivePath)) {
+	//	// Assume that script is ANSI and CRLF
 
-		CHAR szInjectionA[256];
-		CHAR szFileNameA[MAX_PATH];
+	//	CHAR szInjectionA[256];
+	//	CHAR szFileNameA[MAX_PATH];
 
-		// Get archive file name
-		int pos = _tcslen(g_szTempArchivePath);
-		while (pos > 0 && g_szTempArchivePath[pos - 1] != _T('\\')) pos--;
-		TCHAR* pszFileName = g_szTempArchivePath + pos;
+	//	// Get archive file name
+	//	int pos = _tcslen(g_szTempArchivePath);
+	//	while (pos > 0 && g_szTempArchivePath[pos - 1] != _T('\\')) pos--;
+	//	TCHAR* pszFileName = g_szTempArchivePath + pos;
 
-		// Convert TCHAR file name to ANSI
-		TCHAR2CHAR(szFileNameA, pszFileName, MAX_PATH);
-		sprintf_s(szInjectionA, sizeof(szInjectionA),
-			"start /wait \"\" \"%%RESDIR%%\\7zdec.exe\" x \"%%RESDIR%%\\%s\" -o\"%%RESDIR%%\" -y\r\n",
-			szFileNameA);
+	//	// Convert TCHAR file name to ANSI
+	//	TCHAR2CHAR(szFileNameA, pszFileName, MAX_PATH);
+	//	sprintf_s(szInjectionA, sizeof(szInjectionA),
+	//		"start /wait \"\" \"%%RESDIR%%\\7zdec.exe\" x \"%%RESDIR%%\\%s\" -o\"%%RESDIR%%\" -y\r\n",
+	//		szFileNameA);
 
-		DWORD dwInjectBytes = (DWORD)strlen(szInjectionA);
-		DWORD dwFinalLen = dwInjectBytes + dwScriptLen;
+	//	DWORD dwInjectBytes = (DWORD)strlen(szInjectionA);
+	//	DWORD dwFinalLen = dwInjectBytes + dwScriptLen;
 
-		BYTE* pFinalScriptBuffer = (BYTE*)malloc(dwFinalLen);
-		if (pFinalScriptBuffer) {
-			memcpy(pFinalScriptBuffer, szInjectionA, dwInjectBytes);
-			memcpy(pFinalScriptBuffer + dwInjectBytes, pScriptBuffer, dwScriptLen);
+	//	BYTE* pFinalScriptBuffer = (BYTE*)malloc(dwFinalLen);
+	//	if (pFinalScriptBuffer) {
+	//		memcpy(pFinalScriptBuffer, szInjectionA, dwInjectBytes);
+	//		memcpy(pFinalScriptBuffer + dwInjectBytes, pScriptBuffer, dwScriptLen);
 
-			PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pFinalScriptBuffer, dwFinalLen, rawKey, NULL, 0, bEnableLzma);
-			free(pFinalScriptBuffer);
-		}
-	}
-	else {
-		// Original
-		PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pScriptBuffer, dwScriptLen, rawKey, NULL, 0, bEnableLzma);
-	}
+	//		PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pFinalScriptBuffer, dwFinalLen, rawKey, NULL, 0);
+	//		free(pFinalScriptBuffer);
+	//	}
+	//}
+	//else {
+	//	// Original
+	//	PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pScriptBuffer, dwScriptLen, rawKey, NULL, 0);
+	//}
+
+	// Original logic
+	PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pScriptBuffer, dwScriptLen, rawKey, NULL, 0);
+
 	// Free original script buffer anyway
 	if (pScriptBuffer) free(pScriptBuffer);
 
@@ -377,8 +326,7 @@ static void ConverterProcess(CONVERTER_LIST* lpList) {
 				lpList->vecResList[i].dwFileSize,
 				rawKey,
 				pszPureFileName,
-				lpList->vecResList[i].dwFileAttribute,
-				bEnableLzma
+				lpList->vecResList[i].dwFileAttribute
 			);
 		}
 		nCurrentId++;
@@ -436,7 +384,7 @@ static BOOL ParseCmdLine(int argc, char* argv[], CONVERTER_OPTIONS* lpOpt) {
 	lpOpt->bShowConsole = TRUE;
 	lpOpt->eMode = MODE_FATIH;
 	lpOpt->bDestroyRes = TRUE;
-	lpOpt->bEnableLzma = FALSE;
+	lpOpt->bEnableLzma = FALSE;	// Deprecated
 	lpOpt->bHasUserRes = FALSE;
 	lpOpt->nDropDirType = XBAT_DROP_DIR_TEMP;
 
@@ -489,9 +437,6 @@ static BOOL ParseCmdLine(int argc, char* argv[], CONVERTER_OPTIONS* lpOpt) {
 		else if (CheckArgPattern("/invisible")) {
 			lpOpt->bShowConsole = FALSE;
 		}
-		else if (CheckArgPattern("/lzma")) {
-			lpOpt->bEnableLzma = TRUE;
-		}
 		else if (CheckArgPattern("/noclean")) {
 			lpOpt->bDestroyRes = FALSE;
 		}
@@ -543,7 +488,6 @@ int main(int argc, char* argv[]) {
 		break;
 	}
 
-	if (opt.bEnableLzma) cfg.GlobalFlags |= XBAT_FLAG_LZMA_COMPRESSED;
 	if (opt.bDestroyRes) cfg.GlobalFlags |= XBAT_FLAG_DESTROY_RESOURCES;
 	if (opt.nDropDirType >= 0) {
 		cfg.DropDirType = (UINT)opt.nDropDirType;
@@ -633,20 +577,23 @@ int main(int argc, char* argv[]) {
 		}
 
 		if (!vecUserDirs.empty()) {
+			// Inject calling 7zdec flag
+			cfg.GlobalFlags |= XBAT_FLAG_CALL_7ZDEC;
+
 			TCHAR szTempArchivePath[MAX_PATH];
 			TCHAR sz7zDecExePath[MAX_PATH];
 			if (opt.bUseX64) {
-				_stprintf_s(sz7zDecExePath, MAX_PATH, _T("%s\\templates\\resources\\x64\\7zdec.exe"), g_szConverterDirPath);
+				_stprintf_s(sz7zDecExePath, MAX_PATH, _T("%s\\templates\\resources\\x64\\%s"), g_szConverterDirPath, k_lpszArchiveDecoderName);
 			}
 			else {
-				_stprintf_s(sz7zDecExePath, MAX_PATH, _T("%s\\templates\\resources\\x86\\7zdec.exe"), g_szConverterDirPath);
+				_stprintf_s(sz7zDecExePath, MAX_PATH, _T("%s\\templates\\resources\\x86\\%s"), g_szConverterDirPath, k_lpszArchiveDecoderName);
 			}
 			
 
 			TCHAR sz7zPath[MAX_PATH];
 			_stprintf_s(sz7zPath, MAX_PATH, _T("%s\\tools\\7zr.exe"), g_szConverterDirPath);
 
-			_stprintf_s(szTempArchivePath, MAX_PATH, _T("%s\\dir_pack.7z"), g_szTempWorkDirPath);
+			_stprintf_s(szTempArchivePath, MAX_PATH, _T("%s\\%s"), g_szTempWorkDirPath, k_lpszArchiveFileName);
 			_tcscpy_s(g_szTempArchivePath, MAX_PATH, szTempArchivePath);
 
 			// Archive user folders
@@ -699,12 +646,7 @@ int main(int argc, char* argv[]) {
 	else {
 		_tcscat_s(lst.szStubPath, MAX_PATH, _T("x86\\"));
 	}
-	if (opt.eMode == MODE_LITE) {
-		_tcscat_s(lst.szStubPath, MAX_PATH, _T("stub_lite"));
-	}
-	else {
-		_tcscat_s(lst.szStubPath, MAX_PATH, _T("stub_full"));
-	}
+	_tcscat_s(lst.szStubPath, MAX_PATH, _T("stub"));
 	if (opt.bShowConsole) {
 		_tcscat_s(lst.szStubPath, MAX_PATH, _T("_cli"));
 	}

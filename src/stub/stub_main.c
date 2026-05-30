@@ -1,7 +1,6 @@
 
-#if !defined(MODE_VC6) && !defined(MODE_FULL) && !defined(BUILDING_LITE)
+#ifndef BUILDING
 // For editor preview
-#define MODE_FULL
 #ifndef UNICODE
 #define UNICODE
 #define _UNICODE
@@ -53,15 +52,10 @@ extern "C" {
 #endif
 
 #include "../common/nocrt_patch.h"
-#include "../common/vc6_patch.h"
 
 #include "../common/shared_defs.h"
 #include "../common/crypto.h"
 #include "../common/Utils.h"
-
-#ifdef MODE_FULL
-#include "stub_full/stub_full.h"
-#endif
 
 HMODULE g_hStub;
 BYTE FinalKey[XBAT_FINAL_KEY_LENGTH];
@@ -181,47 +175,6 @@ LPBYTE XBat_ExtractResource(const LPVOID lpData, DWORD dwSize, const LPBYTE lpKe
 	
 }
 
-// This is resource extractor with decompression function, 
-#ifdef MODE_FULL
-LPBYTE XBat_ExtractResourceEx(const LPVOID lpData, DWORD dwSize, const LPBYTE lpKey, int keyLength, LPDWORD lpOutLen, LPTSTR lpszOutFileName, LPDWORD lpdwOutAttrib) {
-	if (!lpData || !lpKey) return NULL;
-	XBAT_RES_HEADER* pHeader = (XBAT_RES_HEADER*)lpData;
-	if (pHeader->Magic != *(UINT*)XBatMagic) return NULL;
-	
-	if (lpszOutFileName){
-		lstrcpyn(lpszOutFileName, pHeader->szFileName, XBAT_RES_FILE_NAME_LENGTH);
-	}
-	if (lpdwOutAttrib) *lpdwOutAttrib = pHeader->dwAttributes;
-	
-	UINT SavedCrc = pHeader->SavedCrc;
-	DWORD dwFinalSize = pHeader->dwOriginalSize;
-	// Safer version
-	DWORD dwHeaderSize = (DWORD)((BYTE*)pHeader->Data - (BYTE*)pHeader);
-	DWORD dwCompressedSize = dwSize - dwHeaderSize;
-	
-	BYTE* pCompressed = (BYTE*)malloc(dwCompressedSize);
-	if (!pCompressed) return NULL;
-	
-	memcpy(pCompressed, pHeader->Data, dwCompressedSize);
-	RC4_CTX ctx;
-	RC4_Init(&ctx, lpKey, keyLength);
-	RC4_Process(&ctx, pCompressed, dwCompressedSize);
-	
-	if (CalculateCRC32(pCompressed, dwCompressedSize) != SavedCrc) {
-		free(pCompressed);
-		return NULL;
-	}
-	
-	BYTE* pFinal = XBat_DecompressBuffer(pCompressed, dwCompressedSize, dwFinalSize);
-	
-	free(pCompressed);
-	
-	if (pFinal && lpOutLen) *lpOutLen = dwFinalSize;
-	return pFinal;
-}
-#endif
-
-
 
 void InitResPath(){
 	wnsprintf(g_szSessionResPath, MAX_PATH, _T("%s\\Res"),g_szSessionDropPath);
@@ -256,18 +209,10 @@ BOOL CALLBACK EnumResNamesFunc(HMODULE hMod, LPCTSTR lpType, LPTSTR lpName, LONG
 			return TRUE;
 		}
 		
-//		// Clean old data
-//		s_szFileName[0] = _T('\0');
+		// Clean old data
+		pLocalFileName[0] = _T('\0');
 		
-#ifdef MODE_FULL
-		if (g_Config.GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED){
-			pContent = XBat_ExtractResourceEx(pData, dwSize, FinalKey, XBAT_FINAL_KEY_LENGTH, &dwContentOutLen, pLocalFileName, &dwFileAttrib);
-		} else {
-			pContent = XBat_ExtractResource(pData, dwSize, FinalKey, XBAT_FINAL_KEY_LENGTH, &dwContentOutLen, pLocalFileName, &dwFileAttrib);
-		}
-#else
 		pContent = XBat_ExtractResource(pData, dwSize, FinalKey, XBAT_FINAL_KEY_LENGTH, &dwContentOutLen, pLocalFileName, &dwFileAttrib);
-#endif
 		
 		if (pContent && pLocalFileName[0] != _T('\0')){
 			// Safe string printer
@@ -335,6 +280,131 @@ static void RunBatAsFile_Legacy_Internal(LPTSTR lpszFilePath, BOOL bShow) {
 	}
 }
 
+typedef struct{
+	HANDLE hPipeRead;
+	BOOL bSilent;
+} THREAD_PARAMS;
+
+DWORD WINAPI OutputReaderThread(LPVOID lpParam)
+{
+	THREAD_PARAMS* pParams = (THREAD_PARAMS*)lpParam;
+	if (pParams == NULL) return 0;
+	
+	char buffer[4096];
+	DWORD dwRead;
+	DWORD dwWritten;
+	
+	HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	
+	while (ReadFile(pParams->hPipeRead, buffer, sizeof(buffer), &dwRead, NULL) && dwRead > 0)
+	{
+		if (!pParams->bSilent && hStdOut != NULL && hStdOut != INVALID_HANDLE_VALUE)
+		{
+			WriteFile(hStdOut, buffer, dwRead, &dwWritten, NULL);
+		}
+	}
+	
+	CloseHandle(pParams->hPipeRead);
+	
+	free(pParams);
+	
+	return 0;
+}
+
+BOOL RunBatPipe(LPCSTR lpBatContent, DWORD dwSize, BOOL bShowConsole, LPCSTR lpszBatPath) {
+	HANDLE hInRead, hInWrite, hOutRead, hOutWrite;
+	SECURITY_ATTRIBUTES sa = { sizeof(sa), NULL, TRUE };
+	
+	if (lpBatContent && dwSize == 0) return FALSE;
+	
+	if (!lpszBatPath && lpBatContent){
+		if (!CreatePipe(&hInRead, &hInWrite, &sa, 0)) return FALSE;
+		if (!CreatePipe(&hOutRead, &hOutWrite, &sa, 0)) {
+			CloseHandle(hInRead); CloseHandle(hInWrite);
+			return FALSE;
+		}
+		SetHandleInformation(hInWrite, HANDLE_FLAG_INHERIT, 0);
+		SetHandleInformation(hOutRead, HANDLE_FLAG_INHERIT, 0);
+	}
+	
+	char cmdLine[MAX_PATH + 128];
+	ZeroMemory(cmdLine, sizeof(cmdLine));
+	if (lpszBatPath) {
+		// Fatih-like mode
+		wnsprintfA(cmdLine, sizeof(cmdLine), "cmd.exe /Q /D /C \"\"%s\"\"", lpszBatPath);
+	} else {
+		// Memory mode
+		wnsprintfA(cmdLine, sizeof(cmdLine), "cmd.exe /Q /D /K \"@echo off\"");
+	}
+	
+	STARTUPINFOA si = { sizeof(si) };
+	PROCESS_INFORMATION pi = { 0 };
+	si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+	si.wShowWindow = bShowConsole ? SW_SHOW : SW_HIDE;
+	if (lpszBatPath) {
+		// Fatih mode: inherit stdin handle of parent process
+		si.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
+		si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+		si.hStdError  = GetStdHandle(STD_ERROR_HANDLE);
+	} else {
+		// Memory mode: redirect to pipe
+		si.hStdInput = hInRead;
+		si.hStdOutput = hOutWrite;
+		si.hStdError = hOutWrite;
+	}
+	
+	// Solve the appstarting cursor issue
+	MSG msg;
+	PostThreadMessage(GetCurrentThreadId(), WM_USER, 0, 0);
+	PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+	
+	if (!CreateProcessA(NULL, cmdLine, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+		// Clean
+		if (!lpszBatPath) {
+			CloseHandle(hInRead); CloseHandle(hInWrite);
+			CloseHandle(hOutRead); CloseHandle(hOutWrite);
+		}
+		return FALSE;
+	}
+	
+	
+	if (!lpszBatPath && lpBatContent) {
+		CloseHandle(hInRead);
+		CloseHandle(hOutWrite);
+		
+		THREAD_PARAMS* pParams = (THREAD_PARAMS*)malloc(sizeof(THREAD_PARAMS));
+		if (pParams) {
+			pParams->hPipeRead = hOutRead;
+			pParams->bSilent = !bShowConsole;
+			
+			HANDLE hThread = CreateThread(NULL, 0, OutputReaderThread, pParams, 0, NULL);
+			if (hThread != NULL) {
+				CloseHandle(hThread);
+			} else {
+				free(pParams);
+			}
+			
+		}
+		
+		DWORD dwWritten;
+		WriteFile(hInWrite, "\n", 1, &dwWritten, NULL);		
+		WriteFile(hInWrite, lpBatContent, dwSize, &dwWritten, NULL);
+		WriteFile(hInWrite, "\nexit\n", 6, &dwWritten, NULL);
+		
+		CloseHandle(hInWrite);
+	}
+	
+	// Wait
+	if (bShowConsole) {
+		WaitForSingleObject(pi.hProcess, INFINITE);
+	}
+	
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+	
+	return TRUE;
+}
+
 void ExecBat(LPBYTE lpBatContent, DWORD dwContentLen){
 //	TCHAR szDbg[128];
 //	wsprintf(szDbg, _T("Flags: 0x%08X, Pipe: %d, Full: %d"), 
@@ -352,24 +422,19 @@ void ExecBat(LPBYTE lpBatContent, DWORD dwContentLen){
 	BOOL bUsePipe = FALSE;
 	BOOL bRunAsFile = TRUE; // Lite stub run bat as file by default
 	
-#ifdef MODE_FULL
 	bUsePipe = (g_Config.GlobalFlags & XBAT_FLAG_USE_PIPE);
 	bRunAsFile = (g_Config.GlobalFlags & XBAT_FLAG_RUN_BAT_AS_FILE);	
-#endif
 	
 	static TCHAR szFilePath[MAX_PATH];
 	memset(szFilePath, 0, sizeof(szFilePath));
 	
 	// Init console
 	if (bShowConsole && bUsePipe) {
-#ifdef MODE_FULL
 #ifdef MODE_CLI
 		SetConsoleTitleA(g_Config.szConsoleTitle);
 #endif
-#endif
 	}
 	
-#ifdef MODE_FULL
 	if (bUsePipe) {
 		if (bRunAsFile) {
 			// Fatih mode
@@ -390,7 +455,6 @@ void ExecBat(LPBYTE lpBatContent, DWORD dwContentLen){
 		}
 		return; // Exite after pipe mode
 	}
-#endif
 	
 	// Legacy mode
 	// Fallback for lite mode and pipe not closed
@@ -421,15 +485,7 @@ void StubProcess(){
 	BYTE* pBatContent = NULL;
 	
 
-#ifdef MODE_FULL
-	if (g_Config.GlobalFlags & XBAT_FLAG_LZMA_COMPRESSED){
-		pBatContent = XBat_ExtractResourceEx(pBatData,dwBatResSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwBatContentOutLen,NULL,NULL);
-	} else {
-		pBatContent = XBat_ExtractResource(pBatData,dwBatResSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwBatContentOutLen,NULL,NULL);
-	}
-#else
 	pBatContent = XBat_ExtractResource(pBatData,dwBatResSize,FinalKey,XBAT_FINAL_KEY_LENGTH,&dwBatContentOutLen,NULL,NULL);
-#endif
 	
 	
 	if (pBatContent){
@@ -466,7 +522,30 @@ void StubProcess(){
 			EnumResourceNames(hMod, RT_RCDATA, EnumResNamesFunc, 0);
 		} 
 		
-		MessageBox(NULL,_T("Before entering ExecBat"),_T("Info"),MB_ICONINFORMATION);
+		// Call 7zdec to decompress dir_pack.7z and clean if needed
+		if (g_Config.GlobalFlags & XBAT_FLAG_CALL_7ZDEC){
+			TCHAR szDecoderPath[MAX_PATH];
+			wnsprintf(szDecoderPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, k_lpszArchiveDecoderName);
+			TCHAR szArchivePath[MAX_PATH];
+			wnsprintf(szArchivePath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, k_lpszArchiveFileName);
+			
+			STARTUPINFO si;
+			ZeroMemory(&si, sizeof(si));
+			PROCESS_INFORMATION pi;
+			ZeroMemory(&pi, sizeof(pi));
+			si.cb = sizeof(si);
+			static TCHAR szCmdLine[(MAX_PATH*3) + 128];
+			wnsprintf(szCmdLine, _countof(szCmdLine), _T("\"%s\" x \"%s\""), szDecoderPath, szArchivePath);
+			if (!CreateProcess(NULL, szCmdLine, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, g_szSessionResPath, &si, &pi)){
+				ShowErrorMessage(_T("Failed to call archive decoder"));
+			}
+			WaitForSingleObject(pi.hProcess, INFINITE);
+			CloseHandle(pi.hThread);
+			CloseHandle(pi.hProcess);
+			DeleteFile(szDecoderPath);
+			DeleteFile(szArchivePath);
+		}
+		
 		
 		ExecBat(pFinalContent, dwFinalLen);
 		

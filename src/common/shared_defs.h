@@ -8,7 +8,7 @@
 
 #define XBAT_FLAG_SHOW_CONSOLE          (1 << 0)
 #define XBAT_FLAG_RUN_BAT_AS_FILE       (1 << 1)
-#define XBAT_FLAG_LZMA_COMPRESSED		(1 << 2)
+#define XBAT_FLAG_CALL_7ZDEC			(1 << 2)
 #define XBAT_FLAG_HAS_USER_RESOURCES	(1 << 3)
 #define XBAT_FLAG_USE_PIPE				(1 << 4)
 #define XBAT_FLAG_SELF_DESTROY			(1 << 5) // Only for debugging use, should be enabled by default
@@ -86,5 +86,10 @@ typedef struct {
 } STUB_VERSION_INFO;
 
 #define STDIN_BUF_SIZE 4096
+
+LPCTSTR k_lpszArchiveFileName = TEXT("dir_pack.7z");
+LPCTSTR k_lpszArchiveDecoderName = TEXT("7zdec.exe");
+
+
 
 #endif

@@ -1,8 +1,11 @@
 #include "Utils.h"
 #include <Windows.h>
-#include <tchar.h>
 
-#include "vc6_patch.h"
+#ifdef MODE_CONVERTER
+#include <tchar.h>
+#else
+#include "nocrt_patch.h"
+#endif //MODE_CONVERTER
 
 void XBat_GenerateRandomString(TCHAR* pszBuffer, DWORD dwSize)
 {

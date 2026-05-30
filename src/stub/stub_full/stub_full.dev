@@ -1,7 +1,7 @@
 [Project]
 filename = stub_full.dev
 name = stub_full
-UnitCount = 10
+UnitCount = 7
 Type = 0
 Ver = 3
 Includes = 
@@ -12,7 +12,7 @@ MakeIncludes =
 PrivateResource = 
 Compiler = -DMODE_FULL -DUNICODE -D_UNICODE
 CppCompiler = 
-Linker = F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/lzmadec/LzmaDec.o -Wl,--gc-sections
+Linker = 
 ResourceCommand = 
 IsCpp = 0
 Icon = 
@@ -64,37 +64,37 @@ SyncProduct = 1
 
 
 [Unit1]
-FileName = ../../common/vc6_patch.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = ASCII
-
-
-[Unit2]
-FileName = ../../common/Utils.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = ASCII
-
-
-[Unit3]
 FileName = ../../common/crypto.h
 CompileCpp = 0
 Folder = Headers
 Compile = 0
 Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
+[Unit2]
+FileName = ../../common/shared_defs.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
+[Unit3]
+FileName = ../../common/crypto.c
+CompileCpp = 0
+Folder = Sources
+Compile = 1
+Link = 1
 Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
@@ -112,23 +112,10 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = UTF-8
-
-
-[Unit5]
-FileName = stub_full.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
 RealEncoding = ASCII
 
 
-[Unit6]
+[Unit5]
 FileName = ../../common/nocrt_patch.h
 CompileCpp = 0
 Folder = Headers
@@ -141,8 +128,21 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
+[Unit6]
+FileName = ../../common/Utils.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
 [Unit7]
-FileName = stub_full.c
+FileName = ../../common/Utils.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
@@ -151,7 +151,7 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = UTF-8
+RealEncoding = ASCII
 
 
 [Unit8]
@@ -164,24 +164,11 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = UTF-8
+RealEncoding = ASCII
 
 
 [Unit9]
-FileName = ../../common/shared_defs.h
-CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = UTF-8
-
-
-[Unit10]
-FileName = ../../common/crypto.c
+FileName = ../../common/Utils.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
@@ -191,6 +178,19 @@ OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
 RealEncoding = UTF-8
+
+
+[Unit10]
+FileName = ../../common/vc6_patch.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = ASCII
 
 
 [CompilerSettings]
