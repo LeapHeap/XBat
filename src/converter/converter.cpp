@@ -261,40 +261,6 @@ static void ConverterProcess(CONVERTER_LIST* lpList) {
 	UpdateResource(hUpdate, RT_RCDATA, MAKEINTRESOURCE(IDR_XBAT_KEY),
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), obfuscatedKey, 16);
 
-	//if (PathFileExists(g_szTempArchivePath)) {
-	//	// Assume that script is ANSI and CRLF
-
-	//	CHAR szInjectionA[256];
-	//	CHAR szFileNameA[MAX_PATH];
-
-	//	// Get archive file name
-	//	int pos = _tcslen(g_szTempArchivePath);
-	//	while (pos > 0 && g_szTempArchivePath[pos - 1] != _T('\\')) pos--;
-	//	TCHAR* pszFileName = g_szTempArchivePath + pos;
-
-	//	// Convert TCHAR file name to ANSI
-	//	TCHAR2CHAR(szFileNameA, pszFileName, MAX_PATH);
-	//	sprintf_s(szInjectionA, sizeof(szInjectionA),
-	//		"start /wait \"\" \"%%RESDIR%%\\7zdec.exe\" x \"%%RESDIR%%\\%s\" -o\"%%RESDIR%%\" -y\r\n",
-	//		szFileNameA);
-
-	//	DWORD dwInjectBytes = (DWORD)strlen(szInjectionA);
-	//	DWORD dwFinalLen = dwInjectBytes + dwScriptLen;
-
-	//	BYTE* pFinalScriptBuffer = (BYTE*)malloc(dwFinalLen);
-	//	if (pFinalScriptBuffer) {
-	//		memcpy(pFinalScriptBuffer, szInjectionA, dwInjectBytes);
-	//		memcpy(pFinalScriptBuffer + dwInjectBytes, pScriptBuffer, dwScriptLen);
-
-	//		PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pFinalScriptBuffer, dwFinalLen, rawKey, NULL, 0);
-	//		free(pFinalScriptBuffer);
-	//	}
-	//}
-	//else {
-	//	// Original
-	//	PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pScriptBuffer, dwScriptLen, rawKey, NULL, 0);
-	//}
-
 	// Original logic
 	PackAndInjectResourceEx(hUpdate, IDR_XBAT_BAT, pScriptBuffer, dwScriptLen, rawKey, NULL, 0);
 
@@ -597,7 +563,9 @@ int main(int argc, char* argv[]) {
 			_tcscpy_s(g_szTempArchivePath, MAX_PATH, szTempArchivePath);
 
 			// Archive user folders
-			for (size_t d = 0; d < vecUserDirs.size(); ++d) {
+
+			// Deprecated code, this might cause fragmentation of 7z file
+			/*for (size_t d = 0; d < vecUserDirs.size(); ++d) {
 				STARTUPINFO si = { 0 };
 				PROCESS_INFORMATION pi = { 0 };
 				si.cb = sizeof(si);
@@ -622,7 +590,51 @@ int main(int argc, char* argv[]) {
 				WaitForSingleObject(pi.hProcess, INFINITE);
 				CloseHandle(pi.hThread);
 				CloseHandle(pi.hProcess);
+			}*/
+
+			TCHAR szListFilePath[MAX_PATH];
+			_stprintf_s(szListFilePath, MAX_PATH, _T("%s\\pack_list.txt"), g_szTempWorkDirPath);
+
+			// Write list file
+			FILE* fpList = NULL;
+			if (_tfopen_s(&fpList, szListFilePath, _T("w")) == 0 && fpList != NULL) {
+				for (size_t d = 0; d < vecUserDirs.size(); ++d) {
+					// Using CRLF
+					fprintf(fpList, "%s\r\n", vecUserDirs[d].c_str());
+				}
+				fclose(fpList);
 			}
+			else {
+				fprintf(stderr, "Error: Cannot create 7z list file.\n");
+				return FALSE;
+			}
+
+			STARTUPINFO si = { sizeof(si) };
+			PROCESS_INFORMATION pi = { 0 };
+			si.cb = sizeof(si);
+
+			static TCHAR szCmdLine[(MAX_PATH * 3) + 128];
+			_stprintf_s(szCmdLine, _countof(szCmdLine), _T("\"%s\" a \"%s\" @\"%s\" -m0=LZMA -ms=on"), sz7zPath, szTempArchivePath, szListFilePath);
+
+			if (CreateProcess(
+				NULL,
+				szCmdLine,
+				NULL,
+				NULL,
+				FALSE,
+				CREATE_NO_WINDOW,
+				NULL,
+				NULL,
+				&si,
+				&pi))
+			{
+				WaitForSingleObject(pi.hProcess, INFINITE);
+				CloseHandle(pi.hThread);
+				CloseHandle(pi.hProcess);
+			}
+
+			DeleteFile(szListFilePath);
+
 
 			// Add archive and decoder as resources
 			XBAT_RESOURCE ArchiveRes = { 0 };
