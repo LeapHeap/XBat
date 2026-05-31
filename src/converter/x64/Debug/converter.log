@@ -1,5 +1,0 @@
-﻿  Utils.c
-F:\_lzy_files\lh_codes\XBat\src\common\Utils.c(13,25): warning C4267: 'initializing': conversion from 'size_t' to 'const int', possible loss of data
-  converter.cpp
-F:\_lzy_files\lh_codes\XBat\src\converter\converter.cpp(68,7): warning C4101: 'propsEncoded': unreferenced local variable
-  converter.vcxproj -> F:\_lzy_files\lh_codes\XBat\bin\x64\converter.exe

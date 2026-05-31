@@ -1,9 +1,0 @@
-F:\_lzy_files\lh_codes\XBat\src\common\crypto.c;F:\_lzy_files\lh_codes\XBat\src\converter\x64\Debug\crypto.obj
-F:\_lzy_files\lh_codes\XBat\src\common\lzma_sdk\C\CpuArch.c;F:\_lzy_files\lh_codes\XBat\src\converter\x64\Debug\CpuArch.obj
-F:\_lzy_files\lh_codes\XBat\src\common\lzma_sdk\C\LzFind.c;F:\_lzy_files\lh_codes\XBat\src\converter\x64\Debug\LzFind.obj
-F:\_lzy_files\lh_codes\XBat\src\common\lzma_sdk\C\LzFindMt.c;F:\_lzy_files\lh_codes\XBat\src\converter\x64\Debug\LzFindMt.obj
-F:\_lzy_files\lh_codes\XBat\src\common\lzma_sdk\C\LzFindOpt.c;F:\_lzy_files\lh_codes\XBat\src\converter\x64\Debug\LzFindOpt.obj
-F:\_lzy_files\lh_codes\XBat\src\common\lzma_sdk\C\LzmaEnc.c;F:\_lzy_files\lh_codes\XBat\src\converter\x64\Debug\LzmaEnc.obj
-F:\_lzy_files\lh_codes\XBat\src\common\lzma_sdk\C\Threads.c;F:\_lzy_files\lh_codes\XBat\src\converter\x64\Debug\Threads.obj
-F:\_lzy_files\lh_codes\XBat\src\common\Utils.c;F:\_lzy_files\lh_codes\XBat\src\converter\x64\Debug\Utils.obj
-F:\_lzy_files\lh_codes\XBat\src\converter\converter.cpp;F:\_lzy_files\lh_codes\XBat\src\converter\x64\Debug\converter.obj
