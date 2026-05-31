@@ -77,11 +77,11 @@ RealEncoding = UTF-8
 
 
 [Unit2]
-FileName = ../../common/shared_defs.h
+FileName = ../../common/Utils.c
 CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
+Folder = Sources
+Compile = 1
+Link = 1
 Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
@@ -103,20 +103,7 @@ RealEncoding = UTF-8
 
 
 [Unit4]
-FileName = ../stub_main.c
-CompileCpp = 0
-Folder = Sources
-Compile = 1
-Link = 1
-Priority = 1000
-OverrideBuildCmd = 0
-BuildCmd = 
-FileEncoding = PROJECT
-RealEncoding = ASCII
-
-
-[Unit5]
-FileName = ../../common/nocrt_patch.h
+FileName = ../../common/shared_defs.h
 CompileCpp = 0
 Folder = Headers
 Compile = 0
@@ -128,7 +115,7 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit6]
+[Unit5]
 FileName = ../../common/Utils.h
 CompileCpp = 0
 Folder = Headers
@@ -141,12 +128,25 @@ FileEncoding = PROJECT
 RealEncoding = UTF-8
 
 
-[Unit7]
-FileName = ../../common/Utils.c
+[Unit6]
+FileName = ../stub_main.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
 Link = 1
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = UTF-8
+
+
+[Unit7]
+FileName = ../../common/nocrt_patch.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
 Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 

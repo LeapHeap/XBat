@@ -505,7 +505,7 @@ void StubProcess(){
 			WideCharToMultiByte(CP_ACP, 0, g_szSessionResPath, -1, szResPathA, MAX_PATH, NULL, NULL);
 			
 			char szInjectHeaderA[MAX_PATH * 3];
-			wnsprintfA(szInjectHeaderA, _countof(szInjectHeaderA), "@set \"RESDIR=%s\"\r\n@set \"EXEPATH=%s\"\r\n", szResPathA, szExePathA);
+			wnsprintfA(szInjectHeaderA, _countof(szInjectHeaderA), "@set \"RESDIR=%s\"\r\n@set \"EXEDIR=%s\"\r\n", szResPathA, szExePathA);
 			
 			size_t nHeaderLen = lstrlenA(szInjectHeaderA); 
 			size_t totalLen = nHeaderLen + (size_t)dwBatContentOutLen;

@@ -1,8 +1,8 @@
 [Project]
-filename = __mockcreator_full.dev
-name = __mockcreator_full
-UnitCount = 4
-Type = 1
+filename = stub.dev
+name = stub
+UnitCount = 7
+Type = 0
 Ver = 3
 Includes = 
 Libs = 
@@ -10,9 +10,9 @@ Bins =
 ResourceIncludes = 
 MakeIncludes = 
 PrivateResource = 
-Compiler = -DUNICODE -D_UNICODE -DMODE_FULL
+Compiler = 
 CppCompiler = 
-Linker = F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/C/LzmaEnc.o  F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/C/LzFind.o  F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/C/LzFindMt.o  F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/C/LzFindOpt.o  F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/C/Threads.o  F:/_lzy_files/lh_codes/XBat/src/common/lzma_sdk/C/CpuArch.o
+Linker = 
 ResourceCommand = 
 IsCpp = 0
 Icon = 
@@ -44,7 +44,7 @@ UseUTF8 = 1
 
 
 [Unit1]
-FileName = ../../../common/crypto.c
+FileName = ../common/crypto.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
@@ -69,15 +69,15 @@ FileDescription = Developed using the Red Panda C++ IDE
 InternalName = 
 LegalCopyright = 
 LegalTrademarks = 
-OriginalFilename = __mockcreator_full.exe
-ProductName = __mockcreator_full
+OriginalFilename = stub.exe
+ProductName = stub
 ProductVersion = 0.1.1.1
 AutoIncBuildNr = 0
 SyncProduct = 1
 
 
 [Unit2]
-FileName = ../../../common/crypto.h
+FileName = ../common/shared_defs.h
 CompileCpp = 0
 Folder = Headers
 Compile = 0
@@ -90,7 +90,46 @@ RealEncoding = ASCII
 
 
 [Unit3]
-FileName = main.c
+FileName = ../common/nocrt_patch.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = ASCII
+
+
+[Unit4]
+FileName = ../common/crypto.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = ASCII
+
+
+[Unit5]
+FileName = ../common/Utils.h
+CompileCpp = 0
+Folder = Headers
+Compile = 0
+Link = 0
+Priority = 1000
+OverrideBuildCmd = 0
+BuildCmd = 
+FileEncoding = PROJECT
+RealEncoding = ASCII
+
+
+[Unit6]
+FileName = stub_main.c
 CompileCpp = 0
 Folder = Sources
 Compile = 1
@@ -99,15 +138,15 @@ Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 
 FileEncoding = PROJECT
-RealEncoding = UTF-8
+RealEncoding = ASCII
 
 
-[Unit4]
-FileName = ../../../common/shared_defs.h
+[Unit7]
+FileName = ../common/Utils.c
 CompileCpp = 0
-Folder = Headers
-Compile = 0
-Link = 0
+Folder = Sources
+Compile = 1
+Link = 1
 Priority = 1000
 OverrideBuildCmd = 0
 BuildCmd = 

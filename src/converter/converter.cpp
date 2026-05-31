@@ -54,6 +54,7 @@ typedef struct {
 	BOOL bHasUserRes;
 	BOOL bDestroyRes;
 	BOOL bUseX64;
+	BOOL bUseUpx;
 	int nDropDirType;
 	CHAR szVerInfoPath[MAX_PATH]; // Accept stdin input of file if use "-"
 	CHAR szIconPath[MAX_PATH];
@@ -75,58 +76,6 @@ typedef struct {
 	TCHAR szStubPath[MAX_PATH];
 	TCHAR szOutputPath[MAX_PATH];
 } CONVERTER_LIST;
-
-static BOOL Win32_CombineFilesBinary(const TCHAR* pszDstPath, const TCHAR* papszSrcPaths[], int nSrcCount) {
-	if (!pszDstPath || !papszSrcPaths || nSrcCount <= 0) return FALSE;
-
-	FILE* fpDst = NULL;
-	if (_tfopen_s(&fpDst, pszDstPath, _T("wb")) != 0 || !fpDst) {
-		return FALSE;
-	}
-
-	const size_t BUFFER_SIZE = 4096;
-	BYTE* pBuffer = (BYTE*)malloc(BUFFER_SIZE);
-	if (!pBuffer) {
-		fclose(fpDst);
-		return FALSE;
-	}
-
-	BOOL bSuccess = TRUE;
-
-	for (int i = 0; i < nSrcCount; ++i) {
-		if (!papszSrcPaths[i]) {
-			bSuccess = FALSE;
-			break;
-		}
-
-		FILE* fpSrc = NULL;
-		if (_tfopen_s(&fpSrc, papszSrcPaths[i], _T("rb")) != 0 || !fpSrc) {
-			bSuccess = FALSE;
-			break;
-		}
-
-		size_t bytesRead = 0;
-		while ((bytesRead = fread(pBuffer, 1, BUFFER_SIZE, fpSrc)) > 0) {
-			size_t bytesWritten = fwrite(pBuffer, 1, bytesRead, fpDst);
-			if (bytesWritten != bytesRead) {
-				bSuccess = FALSE;
-				break;
-			}
-		}
-
-		fclose(fpSrc);
-		if (!bSuccess) break;
-	}
-
-	free(pBuffer);
-	fclose(fpDst);
-
-	if (!bSuccess) {
-		DeleteFile(pszDstPath);
-	}
-
-	return bSuccess;
-}
 
 bool IsArgEqual(const char* lpszArg, const char* lpszPattern) {
 	if (!lpszArg || !lpszPattern) return false;
@@ -480,13 +429,88 @@ static BOOL ParseCmdLine(int argc, char* argv[], CONVERTER_OPTIONS* lpOpt) {
 	lpOpt->bEnableLzma = FALSE;	// Deprecated
 	lpOpt->bHasUserRes = FALSE;
 	lpOpt->nDropDirType = XBAT_DROP_DIR_TEMP;
+	lpOpt->bUseUpx = FALSE;
 
-	if (argc < 2) return FALSE;
+	if (argc < 2) {
+		fprintf(stderr, "Error: Too few arguments. For command line usage, use /? or /help.\n");
+		return FALSE;
+	}
 
 	for (int i = 1; i < argc; ++i) {
 		const char* lpszArg = argv[i];
 
-		PARSE_STR_PARAM("/bat", lpOpt->szSrcBatPath, "/bat requires a file path")
+		if (CheckArgPattern("/?") || CheckArgPattern("/help")) {
+			printf("======================================================================\n");
+			printf(" XBat Converter v1.0 - Batch Script to Executable Compiler\n");
+			printf("======================================================================\n\n");
+			printf("Usage:\n");
+			printf("  converter.exe /bat <BatScriptPath> [options...]\n\n");
+
+			printf("Required Arguments:\n");
+			printf("  /bat <path>        Path to the source batch file (.bat / .cmd) to compile.\n\n");
+
+			printf("Optional Output Settings:\n");
+			printf("  /exe <path>        Path to the target output executable (.exe).\n");
+			printf("                     (Default: generated in the same dir with the same name as source batch)\n");
+			printf("  /x64               Build a native 64-bit executable.\n");
+			printf("                     (Default: build 32-bit x86 executable)\n");
+			printf("  /upx               Compress the final executable using UPX.\n");
+			printf("                     (WARNING: UPX may cause problems, including resource fails. Be careful to use it.)\n\n");
+
+			printf("Execution Modes:\n");
+			printf("  /mode <type>       Set payload execution backend environment. Supported modes:\n");
+			printf("                       standard : Extracts assets to dropdir and runs securely. (Default)\n");
+			printf("                       memory   : Pure in-memory streaming execution via pipes.\n");
+			printf("                       (WARNING: memory mode is experimental and does NOT support\n");
+			printf("                       interactive commands, e.g. pause or set /p.)\n");
+			printf("                       lite     : Simple script execution without creating a pipe.\n");
+			printf("  /invisible         Hide the application console window on payload startup.\n");
+			printf("                     (Default: console window is visible)\n\n");
+
+			printf("Resource & Cleanup Options:\n");
+			printf("  /include <path>    Include external user resource files or directories.\n");
+			printf("                     (Can be specified multiple times to package multiple folders)\n");
+			printf("  /icon <path>       Inject custom .ico application icon into the target EXE.\n");
+			printf("  /ver <path>        Inject custom PE version information via an .ini file template.\n");
+			printf("  /dropdir <int>     Set the drop extraction target location for standard mode:\n");
+			printf("                       0 : User's local %%TEMP%% directory. (Default)\n");
+			printf("                       1 : Current execution directory.\n");
+			printf("  /noclean           Disable post-execution asset cleanup.\n");
+			printf("                     (Default: completely purges session data on exit)\n\n");
+
+			printf("======================================================================\n");
+			printf(" IMPORTANT: SCRIPT DEVELOPMENT ENVIRONMENT GUIDE\n");
+			printf("======================================================================\n");
+			printf("  1. SCRIPT ENCODING WARNING (CRITICAL):\n");
+			printf("     The source batch file MUST be saved in native ANSI encoding (e.g., GBK for\n");
+			printf("     Chinese Windows, Code Page 936). Do NOT use UTF-8! UTF-8 scripts containing\n");
+			printf("     non-ASCII characters will cause messy code and runtime failures.\n\n");
+
+			printf("  2. WORKPATH & PATH LOCATOR:\n");
+			printf("     DO NOT use '%%~dp0' in your batch script to locate files! Due to the isolated\n");
+			printf("     and in-memory extraction backend, '%%~dp0' will point to incorrect temp dirs.\n\n");
+			printf("     Use these pre-injected XBat Environment Variables instead:\n");
+			printf("       %%EXEDIR%%    Points to the TRUE physical directory where the compiled EXE resides.\n");
+			printf("       %%RESDIR%%    Points to the directory containing all your /include assets.\n\n");
+			printf("     Example inside script:\n");
+			printf("       copy \"%%RESDIR%%\\config.dat\" \"%%APPDATA%%\\\"\n");
+			printf("       echo Current Wrapper EXE location is: %%EXEDIR%%\n\n");
+
+			printf("Examples:\n");
+			printf("  1. Standard Mode compilation with hidden window:\n");
+			printf("     converter.exe /bat run.bat /exe output.exe /invisible\n\n");
+			printf("  2. Heavy packing with assets, custom icon, metadata injection and x64 payload:\n");
+			printf("     converter.exe /bat build.bat /exe final.exe /mode standard /x64\n");
+			printf("                   /include .\\my_assets /icon app.ico /ver version.ini\n\n");
+			printf("  3. Pure in-memory high-protection pipe execution:\n");
+			printf("     converter.exe /bat core_logic.bat /exe secured.exe /mode memory\n\n");
+
+			printf("======================================================================\n");
+
+			return FALSE;
+		}
+
+		else PARSE_STR_PARAM("/bat", lpOpt->szSrcBatPath, "/bat requires a file path")
 		else PARSE_STR_PARAM("/exe", lpOpt->szTargetExePath, "/exe requires an output path.")
 		else PARSE_STR_PARAM("/icon", lpOpt->szIconPath, "/icon requires a file path.")
 		else PARSE_STR_PARAM("/ver", lpOpt->szVerInfoPath, "/ver requires a file path or '-'.")
@@ -535,6 +559,9 @@ static BOOL ParseCmdLine(int argc, char* argv[], CONVERTER_OPTIONS* lpOpt) {
 		}
 		else if (CheckArgPattern("/x64")) {
 			lpOpt->bUseX64 = TRUE;
+		}
+		else if (CheckArgPattern("/upx")) {
+			lpOpt->bUseUpx = TRUE;
 		}
 	}
 
@@ -691,34 +718,6 @@ int main(int argc, char* argv[]) {
 
 			// Archive user folders
 
-			// Deprecated code, this might cause fragmentation of 7z file
-			/*for (size_t d = 0; d < vecUserDirs.size(); ++d) {
-				STARTUPINFO si = { 0 };
-				PROCESS_INFORMATION pi = { 0 };
-				si.cb = sizeof(si);
-				static TCHAR szCmdLine[(MAX_PATH * 3) + 64];
-				TCHAR szCurrIncPathT[MAX_PATH];
-				CHAR2TCHAR(szCurrIncPathT, vecUserDirs[d].data(), MAX_PATH);
-				_stprintf_s(szCmdLine, _countof(szCmdLine), _T("\"%s\" a \"%s\" \"%s\" -m0=LZMA -ms=on"), sz7zPath ,szTempArchivePath, szCurrIncPathT);
-				if (!CreateProcess(
-					NULL,
-					szCmdLine,
-					NULL,
-					NULL,
-					FALSE,
-					CREATE_NO_WINDOW,
-					NULL,
-					NULL,
-					&si,
-					&pi))
-				{
-					continue;
-				}
-				WaitForSingleObject(pi.hProcess, INFINITE);
-				CloseHandle(pi.hThread);
-				CloseHandle(pi.hProcess);
-			}*/
-
 			TCHAR szListFilePath[MAX_PATH];
 			_stprintf_s(szListFilePath, MAX_PATH, _T("%s\\pack_list.txt"), g_szTempWorkDirPath);
 
@@ -793,8 +792,39 @@ int main(int argc, char* argv[]) {
 		_tcscat_s(lst.szStubPath, MAX_PATH, _T("_gui"));
 	}
 	_tcscat_s(lst.szStubPath, MAX_PATH, _T(".bin"));
+	//_stprintf_s(lst.szStubPath, MAX_PATH, _T("\"%s\""), lst.szStubPath);
 
 	ConverterProcess(&lst);
+
+	if (opt.bUseUpx) {
+		STARTUPINFO si = { sizeof(si) };
+		PROCESS_INFORMATION pi = { 0 };
+		si.cb = sizeof(si);
+
+		TCHAR szUpxPath[MAX_PATH];
+		_stprintf_s(szUpxPath, MAX_PATH, _T("%s\\tools\\upx.exe"), g_szConverterDirPath);
+
+		static TCHAR szCmdLine[MAX_PATH *2];
+		_stprintf_s(szCmdLine, _countof(szCmdLine), _T("\"%s\" \"%s\""), szUpxPath, lst.szOutputPath);
+
+		if (CreateProcess(
+			NULL,
+			szCmdLine,
+			NULL,
+			NULL,
+			FALSE,
+			CREATE_NO_WINDOW,
+			NULL,
+			NULL,
+			&si,
+			&pi))
+		{
+			WaitForSingleObject(pi.hProcess, INFINITE);
+			CloseHandle(pi.hThread);
+			CloseHandle(pi.hProcess);
+		}
+	}
+
 	DestroyTempWorkDir();
 
 	return TRUE;
