@@ -1,0 +1,71 @@
+======================================================================
+ XBat Converter v1.0 - Batch Script to Executable Compiler
+======================================================================
+
+Usage:
+  converter.exe /bat <BatScriptPath> [options...]
+
+Required Arguments:
+  /bat <path>        Path to the source batch file (.bat / .cmd) to compile.
+
+Optional Output Settings:
+  /exe <path>        Path to the target output executable (.exe).
+                     (Default: generated in the same dir with the same name as source batch)
+  /x64               Build a native 64-bit executable.
+                     (Default: build 32-bit x86 executable)
+  /upx               Compress the final executable using UPX.
+                     (WARNING: UPX may cause problems, including resource fails. Be careful to use it.)
+
+Execution Modes:
+  /mode <type>       Set payload execution backend environment. Supported modes:
+                       standard : Extracts assets to dropdir and runs securely. (Default)
+                       memory   : Pure in-memory streaming execution via pipes.
+                       (WARNING: memory mode is experimental and does NOT support
+                       interactive commands, e.g. pause or set /p.)
+                       lite     : Simple script execution without creating a pipe.
+  /invisible         Hide the application console window on payload startup.
+                     (Default: console window is visible)
+
+Resource & Cleanup Options:
+  /include <path>    Include external user resource files or directories.
+                     (Can be specified multiple times to package multiple folders)
+  /icon <path>       Inject custom .ico application icon into the target EXE.
+  /ver <path>        Inject custom PE version information via an .ini file template.
+  /dropdir <int>     Set the drop extraction target location for standard mode:
+                       0 : User's local %TEMP% directory. (Default)
+                       1 : Current execution directory.
+  /noclean           Disable post-execution asset cleanup.
+                     (Default: completely purges session data on exit)
+
+======================================================================
+ IMPORTANT: SCRIPT DEVELOPMENT ENVIRONMENT GUIDE
+======================================================================
+  1. SCRIPT ENCODING WARNING (CRITICAL):
+     The source batch file MUST be saved in native ANSI encoding (e.g., GBK for
+     Chinese Windows, Code Page 936). Do NOT use UTF-8! UTF-8 scripts containing
+     non-ASCII characters will cause messy code and runtime failures.
+
+  2. WORKPATH & PATH LOCATOR:
+     DO NOT use '%~dp0' in your batch script to locate files! Due to the isolated
+     and in-memory extraction backend, '%~dp0' will point to incorrect temp dirs.
+
+     Use these pre-injected XBat Environment Variables instead:
+       %EXEDIR%    Points to the TRUE physical directory where the compiled EXE resides.
+       %RESDIR%    Points to the directory containing all your /include assets.
+
+     Example inside script:
+       copy "%RESDIR%\config.dat" "%APPDATA%\"
+       echo Current Wrapper EXE location is: %EXEDIR%
+
+Examples:
+  1. Standard Mode compilation with hidden window:
+     converter.exe /bat run.bat /exe output.exe /invisible
+
+  2. Heavy packing with assets, custom icon, metadata injection and x64 payload:
+     converter.exe /bat build.bat /exe final.exe /mode standard /x64
+                   /include .\my_assets /icon app.ico /ver version.ini
+
+  3. Pure in-memory high-protection pipe execution:
+     converter.exe /bat core_logic.bat /exe secured.exe /mode memory
+
+======================================================================
