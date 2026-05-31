@@ -303,42 +303,169 @@ static void ConverterProcess(CONVERTER_LIST* lpList) {
 
 	// Add icon and version info
 
-	// TODO: Use rcedit as backend for this
+	STUB_VERSION_INFO svi = { 0 };
+	BOOL bHasVersionInfo = FALSE;
 
-	//STUB_VERSION_INFO svi = { 0 };
-	//BOOL bHasVersionInfo = FALSE;
+	if (lpList->szVerInfoPath[0] != _T('\0')) {
+		bHasVersionInfo = TRUE;
+		// Default values
+		WORD wYear = 2026;
+		SYSTEMTIME st = { 0 };
+		GetLocalTime(&st);
+		wYear = st.wYear;
+		_tcscpy_s(svi.szComments, 128, _T("Packed by XBat Converter."));
+		_tcscpy_s(svi.szCompanyName, 128, _T("XBat Project"));
+		_tcscpy_s(svi.szFileDescription, 128, _T("XBat Packed Executable Application"));
+		_tcscpy_s(svi.szFileVersion, 128, _T("1.0.0.0"));
+		_tcscpy_s(svi.szInternalName, 128, _T("XBatStub.exe"));
+		_stprintf_s(svi.szLegalCopyright, 128, _T("Copyright (C) %d. All rights reserved."), wYear);
+		_tcscpy_s(svi.szLegalTrademarks, 128, _T("XBat(TM)"));
+		_tcscpy_s(svi.szOriginalFilename, 128, _T("XBatOutput.exe"));
+		_tcscpy_s(svi.szPrivateBuild, 128, _T(""));
+		_tcscpy_s(svi.szProductName, 128, _T("XBat Generated Application"));
+		_tcscpy_s(svi.szProductVersion, 128, _T("1.0.0.0"));
+		_tcscpy_s(svi.szSpecialBuild, 128, _T(""));
 
-	//if (lpList->szVerInfoPath[0] != _T('\0')) {
-	//	bHasVersionInfo = TRUE;
-	//	// Default values
-	//	WORD wYear = 2026;
-	//	SYSTEMTIME st = { 0 };
-	//	GetLocalTime(&st);
-	//	wYear = st.wYear;
-	//	_tcscpy_s(svi.szComments, 128, _T("Packed by XBat Converter."));
-	//	_tcscpy_s(svi.szCompanyName, 128, _T("XBat Project"));
-	//	_tcscpy_s(svi.szFileDescription, 128, _T("XBat Packed Executable Application"));
-	//	_tcscpy_s(svi.szFileVersion, 128, _T("1.0.0.0"));
-	//	_tcscpy_s(svi.szInternalName, 128, _T("XBatStub.exe"));
-	//	_stprintf_s(svi.szLegalCopyright, 128, _T("Copyright (C) %d. All rights reserved."), wYear);
-	//	_tcscpy_s(svi.szLegalTrademarks, 128, _T("XBat(TM)"));
-	//	_tcscpy_s(svi.szOriginalFilename, 128, _T("XBatOutput.exe"));
-	//	_tcscpy_s(svi.szPrivateBuild, 128, _T(""));
-	//	_tcscpy_s(svi.szProductName, 128, _T("XBat Generated Application"));
-	//	_tcscpy_s(svi.szProductVersion, 128, _T("1.0.0.0"));
-	//	_tcscpy_s(svi.szSpecialBuild, 128, _T(""));
+		// TODO: Extract from ini and override
+		// ini path is lpList->szVerInfoPath
+		LPCTSTR lpszIniSection = _T("VersionInfo");
+		TCHAR szAbsoluteIniPath[MAX_PATH];
+		if (GetFullPathName(lpList->szVerInfoPath, MAX_PATH, szAbsoluteIniPath, NULL) == 0) {
+			_tcscpy_s(szAbsoluteIniPath, MAX_PATH, lpList->szVerInfoPath);
+		}
+		LPCTSTR lpszIniPath = szAbsoluteIniPath;
 
-	//	// TODO: Extract from ini and override
+		TCHAR szValue[128];
 
-	//}
+#pragma region INI_FIELD_EXTRACT_AND_OVERRIDE
 
-	//TCHAR szResPath[MAX_PATH];
-	//
-	//if (!BuildResourceFile(lpList->szIconPath, &svi, szResPath, MAX_PATH, bHasVersionInfo)) return;
+		// 1. Comments
+		if (GetPrivateProfileString(lpszIniSection, _T("Comments"), svi.szComments, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szComments, 128, szValue);
+		}
+		// 2. CompanyName
+		if (GetPrivateProfileString(lpszIniSection, _T("CompanyName"), svi.szCompanyName, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szCompanyName, 128, szValue);
+		}
+		// 3. FileDescription
+		if (GetPrivateProfileString(lpszIniSection, _T("FileDescription"), svi.szFileDescription, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szFileDescription, 128, szValue);
+		}
+		// 4. FileVersion
+		if (GetPrivateProfileString(lpszIniSection, _T("FileVersion"), svi.szFileVersion, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szFileVersion, 128, szValue);
+		}
+		// 5. InternalName
+		if (GetPrivateProfileString(lpszIniSection, _T("InternalName"), svi.szInternalName, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szInternalName, 128, szValue);
+		}
+		// 6. LegalCopyright
+		if (GetPrivateProfileString(lpszIniSection, _T("LegalCopyright"), svi.szLegalCopyright, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szLegalCopyright, 128, szValue);
+		}
+		// 7. LegalTrademarks
+		if (GetPrivateProfileString(lpszIniSection, _T("LegalTrademarks"), svi.szLegalTrademarks, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szLegalTrademarks, 128, szValue);
+		}
+		// 8. OriginalFilename
+		if (GetPrivateProfileString(lpszIniSection, _T("OriginalFilename"), svi.szOriginalFilename, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szOriginalFilename, 128, szValue);
+		}
+		// 9. PrivateBuild
+		if (GetPrivateProfileString(lpszIniSection, _T("PrivateBuild"), svi.szPrivateBuild, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szPrivateBuild, 128, szValue);
+		}
+		// 10. ProductName
+		if (GetPrivateProfileString(lpszIniSection, _T("ProductName"), svi.szProductName, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szProductName, 128, szValue);
+		}
+		// 11. ProductVersion
+		if (GetPrivateProfileString(lpszIniSection, _T("ProductVersion"), svi.szProductVersion, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szProductVersion, 128, szValue);
+		}
+		// 12. SpecialBuild
+		if (GetPrivateProfileString(lpszIniSection, _T("SpecialBuild"), svi.szSpecialBuild, szValue, 128, lpszIniPath) > 0) {
+			_tcscpy_s(svi.szSpecialBuild, 128, szValue);
+		}
 
-	//if (InjectResIntoExe(lpList->szOutputPath, szResPath)) {
-	//	DeleteFile(szResPath);
-	//}
+#pragma endregion
+
+	}
+
+	TCHAR szDestExePath[MAX_PATH];
+	_tcscpy_s(szDestExePath, MAX_PATH, lpList->szOutputPath);
+
+	TCHAR szRceditPath[MAX_PATH];
+	_stprintf_s(szRceditPath, MAX_PATH, _T("%s\\tools\\rcedit.exe"), g_szConverterDirPath);
+
+	static TCHAR szRcCmdLine[MAX_PATH * 15];
+	_stprintf_s(szRcCmdLine, _countof(szRcCmdLine), _T("\"%s\" \"%s\""), szRceditPath, szDestExePath);
+
+	_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine),
+		_T(" --set-file-version \"%s\" --set-product-version \"%s\""), svi.szFileVersion, svi.szProductVersion);
+
+	if (_tcslen(svi.szCompanyName) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"CompanyName\" \"%s\""), svi.szCompanyName);
+	}
+	if (_tcslen(svi.szFileDescription) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"FileDescription\" \"%s\""), svi.szFileDescription);
+	}
+	if (_tcslen(svi.szInternalName) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"InternalName\" \"%s\""), svi.szInternalName);
+	}
+	if (_tcslen(svi.szLegalCopyright) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"LegalCopyright\" \"%s\""), svi.szLegalCopyright);
+	}
+	if (_tcslen(svi.szOriginalFilename) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"OriginalFilename\" \"%s\""), svi.szOriginalFilename);
+	}
+	if (_tcslen(svi.szProductName) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"ProductName\" \"%s\""), svi.szProductName);
+	}
+	if (_tcslen(svi.szComments) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"Comments\" \"%s\""), svi.szComments);
+	}
+	if (_tcslen(svi.szLegalTrademarks) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"LegalTrademarks\" \"%s\""), svi.szLegalTrademarks);
+	}
+	if (_tcslen(svi.szPrivateBuild) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"PrivateBuild\" \"%s\""), svi.szPrivateBuild);
+	}
+	if (_tcslen(svi.szSpecialBuild) > 0) {
+		_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine), _T(" --set-version-string \"SpecialBuild\" \"%s\""), svi.szSpecialBuild);
+	}
+
+	if (lpList->szIconPath[0] != _T('\0')) {
+		DWORD dwIconAttr = GetFileAttributes(lpList->szIconPath);
+		if (dwIconAttr != INVALID_FILE_ATTRIBUTES && !(dwIconAttr & FILE_ATTRIBUTE_DIRECTORY)) {
+			_stprintf_s(szRcCmdLine + _tcslen(szRcCmdLine), _countof(szRcCmdLine) - _tcslen(szRcCmdLine),
+				_T(" --set-icon \"%s\""), lpList->szIconPath);
+		}
+	}
+
+	STARTUPINFO si = { sizeof(si) };
+	PROCESS_INFORMATION pi = { 0 };
+	si.cb = sizeof(si);
+
+	if (CreateProcess(
+		NULL,
+		szRcCmdLine,
+		NULL,
+		NULL,
+		FALSE,
+		CREATE_NO_WINDOW,
+		NULL,
+		NULL,
+		&si,
+		&pi))
+	{
+		WaitForSingleObject(pi.hProcess, INFINITE);
+		CloseHandle(pi.hThread);
+		CloseHandle(pi.hProcess);
+	}
+	else {
+		fprintf(stderr, "Error: Failed to execute rcedit.exe to inject resources.\n");
+	}
 
 }
 
