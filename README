@@ -1,9 +1,9 @@
 ======================================================================
- XBat Converter v1.0 - Batch Script to Executable Compiler
+ XBat CLI v1.1.0.0 - Batch Script to Executable Compiler
 ======================================================================
 
 Usage:
-  converter.exe /bat <BatScriptPath> [options...]
+  XBatC.exe /bat <BatScriptPath> [options...]
 
 Required Arguments:
   /bat <path>        Path to the source batch file (.bat / .cmd) to compile.
@@ -59,13 +59,13 @@ Resource & Cleanup Options:
 
 Examples:
   1. Standard Mode compilation with hidden window:
-     converter.exe /bat run.bat /exe output.exe /invisible
+     XBatC.exe /bat run.bat /exe output.exe /invisible
 
   2. Heavy packing with assets, custom icon, metadata injection and x64 payload:
-     converter.exe /bat build.bat /exe final.exe /mode standard /x64
+     XBatC.exe /bat build.bat /exe final.exe /mode standard /x64
                    /include .\my_assets /icon app.ico /ver version.ini
 
   3. Pure in-memory high-protection pipe execution:
-     converter.exe /bat core_logic.bat /exe secured.exe /mode memory
+     XBatC.exe /bat core_logic.bat /exe secured.exe /mode memory
 
 ======================================================================
