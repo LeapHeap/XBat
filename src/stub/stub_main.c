@@ -525,9 +525,9 @@ void StubProcess(){
 		// Call 7zdec to decompress dir_pack.7z and clean if needed
 		if (g_Config.GlobalFlags & XBAT_FLAG_CALL_7ZDEC){
 			TCHAR szDecoderPath[MAX_PATH];
-			wnsprintf(szDecoderPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, k_lpszArchiveDecoderName);
+			wnsprintf(szDecoderPath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, XBAT_ARCHIVE_DECODER_NAME);
 			TCHAR szArchivePath[MAX_PATH];
-			wnsprintf(szArchivePath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, k_lpszArchiveFileName);
+			wnsprintf(szArchivePath, MAX_PATH, _T("%s\\%s"), g_szSessionResPath, XBAT_ARCHIVE_FILE_NAME);
 			
 			STARTUPINFO si;
 			ZeroMemory(&si, sizeof(si));

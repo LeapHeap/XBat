@@ -87,9 +87,7 @@ typedef struct {
 
 #define STDIN_BUF_SIZE 4096
 
-LPCTSTR k_lpszArchiveFileName = TEXT("dir_pack.7z");
-LPCTSTR k_lpszArchiveDecoderName = TEXT("7zdec.exe");
-
-
+#define XBAT_ARCHIVE_FILE_NAME TEXT("dir_pack.7z")
+#define XBAT_ARCHIVE_DECODER_NAME TEXT("7zdec.exe")
 
 #endif

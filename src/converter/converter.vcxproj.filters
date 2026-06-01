@@ -24,6 +24,9 @@
     <ClCompile Include="..\common\Utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="XBatC.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\crypto.h">
@@ -39,6 +42,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\common\version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="converter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
