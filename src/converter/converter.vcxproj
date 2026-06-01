@@ -142,6 +142,7 @@
     <ClInclude Include="..\common\crypto.h" />
     <ClInclude Include="..\common\shared_defs.h" />
     <ClInclude Include="..\common\Utils.h" />
+    <ClInclude Include="..\common\version.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

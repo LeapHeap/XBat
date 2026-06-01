@@ -1,0 +1,19 @@
+#pragma once
+
+#define VERSION_MAJOR               1
+#define VERSION_MINOR               1
+#define VERSION_BUILD               0
+#define VERSION_REVISION            0
+
+// In .rc
+#define PRODUCT_VERSION_BINARY      VERSION_MAJOR,VERSION_MINOR,VERSION_BUILD,VERSION_REVISION
+#define FILE_VERSION_BINARY         VERSION_MAJOR,VERSION_MINOR,VERSION_BUILD,VERSION_REVISION
+
+#define _STR(x)                     #x
+#define STR(x)                      _STR(x)
+
+// In code
+#define PRODUCT_VERSION_STRING      STR(VERSION_MAJOR) "." STR(VERSION_MINOR) "." STR(VERSION_BUILD) "." STR(VERSION_REVISION)
+#define FILE_VERSION_STRING         STR(VERSION_MAJOR) "." STR(VERSION_MINOR) "." STR(VERSION_BUILD) "." STR(VERSION_REVISION)
+
+
